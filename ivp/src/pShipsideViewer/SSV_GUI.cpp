@@ -87,7 +87,7 @@ SSV_GUI::SSV_GUI(int g_w, int g_h, const char *g_l)
   v_crs->textsize(info_size); 
   v_crs->labelsize(info_size);
 
-  v_dep = new MY_Output(500, h()-60, 55, 20, "Depth:"); 
+  v_dep = new MY_Output(500, h()-60, 55, 20, "Depth(m):"); 
   v_dep->textsize(info_size); 
   v_dep->labelsize(info_size);
 
@@ -110,6 +110,15 @@ SSV_GUI::SSV_GUI(int g_w, int g_h, const char *g_l)
   d_radial = new MY_Output(750, h()-60, 55, 20, "Radial:"); 
   d_radial->textsize(info_size); 
   d_radial->labelsize(info_size);
+
+  m_rbearing = new MY_Output(900, h()-60, 55, 20, "Rel-Bearing:"); 
+  m_rbearing->textsize(info_size); 
+  m_rbearing->labelsize(info_size);
+
+  m_contact_range = new MY_Output(900, h()-30, 55, 20, "Range(m):"); 
+  m_contact_range->textsize(info_size); 
+  m_contact_range->labelsize(info_size);
+
 
   int a_top = h()-323; // eyeballing it
   int a_txt = 25;
@@ -295,7 +304,8 @@ void SSV_GUI::augmentMenu()
   mbar->add("Shipside/Radial  200",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)200, 0);
   mbar->add("Shipside/Radial  500",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)500, 0);
   mbar->add("Shipside/Radial 1000",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)1000, 0);
-  mbar->add("Shipside/Radial Cycle", 'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-1, 0);
+  mbar->add("Shipside/Radial Cycle", 'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-1, FL_MENU_DIVIDER);
+  mbar->add("Shipside/BearingLines", 'x', (Fl_Callback*)SSV_GUI::cb_Bearings,(void*)0, 0);
 
   mbar->add("ForeView/Cycle Focus", 'v', (Fl_Callback*)SSV_GUI::cb_CycleFocus,(void*)0, 0);
 
@@ -386,6 +396,18 @@ void SSV_GUI::updateXY() {
     ais_str = "n/a";
   v_ais->value(ais_str.c_str());
 
+  double rbearing     = mviewer->getRelativeInfo(index, "relative_bearing");
+  string rbearing_str = doubleToString(rbearing,1);
+  if(rbearing == -1)
+    rbearing_str = "n/a";
+  m_rbearing->value(rbearing_str.c_str());
+
+  double vrange     = mviewer->getRelativeInfo(index, "range");
+  string vrange_str = doubleToString(vrange,1);
+  if(vrange == -1)
+    vrange_str = "n/a";
+  m_contact_range->value(vrange_str.c_str());
+
   if(mviewer->hasVehiName(ownship_b0->label()))
     ownship_b0->labelcolor(FL_BLACK);
   else
@@ -450,6 +472,17 @@ inline void SSV_GUI::cb_CycleFocus_i(int val) {
 void SSV_GUI::cb_CycleFocus(Fl_Widget* o, int v) {
   int val = (int)(v);
   ((SSV_GUI*)(o->parent()->user_data()))->cb_CycleFocus_i(val);
+}
+
+//----------------------------------------- Bearings
+inline void SSV_GUI::cb_Bearings_i() {
+  mviewer->setParam("bearing_lines", "toggle");
+  mviewer->redraw();
+  updateXY();
+}
+
+void SSV_GUI::cb_Bearings(Fl_Widget* o) {
+  ((SSV_GUI*)(o->parent()->user_data()))->cb_Bearings_i();
 }
 
 //----------------------------------------- MOOS_Button

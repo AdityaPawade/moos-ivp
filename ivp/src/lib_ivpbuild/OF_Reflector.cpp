@@ -20,14 +20,16 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
+#include <iostream>
 #include <stdlib.h>
 #include "OF_Reflector.h"
 #include "BuildUtils.h"
 #include "IvPFunction.h"
 #include "Regressor.h"
 #include "RT_Uniform.h"
-#include "RT_Priority.h"
-#include "RT_Focus.h"
+#include "RT_Smart.h"
+#include "RT_Directed.h"
+#include "RT_AutoPeak.h"
 #include "MBUtils.h"
 
 using namespace std;
@@ -47,14 +49,15 @@ OF_Reflector::OF_Reflector(const AOF *g_aof, int g_degree)
     m_domain    = m_aof->getDomain();
 
   m_rt_uniform  = new RT_Uniform(m_regressor);
-  m_rt_priority = new RT_Priority(m_regressor);
-  m_rt_focus    = new RT_Focus(m_regressor);
+  m_rt_smart    = new RT_Smart(m_regressor);
+  m_rt_directed = new RT_Directed(m_regressor);
+  m_rt_autopeak = new RT_AutoPeak(m_regressor);
   
   m_uniform_amount = 1;
   m_smart_amount   = 0;
   m_smart_percent  = 0;
   m_smart_thresh   = 0;
-  m_auto_peak      = true;
+  m_auto_peak      = false;
 }
 
 //-------------------------------------------------------------
@@ -71,8 +74,9 @@ OF_Reflector::~OF_Reflector()
 
   delete(m_regressor);
   delete(m_rt_uniform);
-  delete(m_rt_priority);
-  delete(m_rt_focus);
+  delete(m_rt_smart);
+  delete(m_rt_directed);
+  delete(m_rt_autopeak);
 }
 
 //-------------------------------------------------------------
@@ -103,6 +107,25 @@ IvPFunction *OF_Reflector::extractOF(bool normalize)
   return(new_ipf);
 }
 
+//-------------------------------------------------------------
+// Procedure: getErrors
+
+string OF_Reflector::getErrors()
+{
+  unsigned int vsize = m_errors.size();
+  string vs = ("/" + intToString(vsize));
+  
+  string errors;
+  for(unsigned int i=0; i<vsize; i++) {
+    errors += ("(" + intToString(i+1) + vs + ") ");
+    errors += m_errors[i];
+    if(i < (vsize-1))
+      errors += " ";
+	       
+  }
+  return(errors);
+}
+    
 //-------------------------------------------------------------
 // Procedure: clearPDMap()
 
@@ -138,9 +161,11 @@ bool OF_Reflector::setParam(string str)
   vector<string> svector = parseString(str, '#');
   int vsize = svector.size();
 
-  if(vsize == 0)
+  if(vsize == 0) {
+    m_errors.push_back("Empty list of param/value pairs");
     return(false);
-  
+  }
+
   for(int i=0; i<vsize; i++) {
     svector[i] = stripBlankEnds(svector[i]);
     vector<string> tvector = parseString(svector[i], '=');
@@ -176,42 +201,63 @@ bool OF_Reflector::setParam(string param, string value)
   value = tolower(stripBlankEnds(value));
 
   if(param == "strict_range") {
-    if((value != "true") && (value != "false"))
+    if((value != "true") && (value != "false")) {
+      m_errors.push_back("strict_range value must be true/false");
       return(false);
+    }
     if(m_regressor)
       m_regressor->setStrictRange(value=="true");
   }
   else if((param=="uniform_amount")||(param=="uniform_amt")) {
     int uniform_amount = atoi(value.c_str());
-    if(!isNumber(value) || (uniform_amount < 1))
+    if(!isNumber(value)) {
+      m_errors.push_back(param + " value must be numerical");
       return(false);
+    }
+    if(!isNumber(value) || (uniform_amount < 1)) {
+      m_errors.push_back(param + " value must be >= 1");
+      return(false);
+    }
     m_uniform_amount = uniform_amount;
   }
   else if((param=="uniform_piece")||(param=="uniform_box")) {
-    m_uniform_piece = stringToPointBox(value, m_domain, ',', ':');
-    if(m_uniform_piece.null())
+    IvPBox foo = stringToPointBox(value, m_domain, ',', ':');
+    m_uniform_piece = foo;
+    if(m_uniform_piece.null()) {
+      m_errors.push_back(param + " value is ill-defined");
       return(false);
+    }
   }
   else if(param=="uniform_grid") {
     m_uniform_grid = stringToPointBox(value, m_domain, ',', ':');
-    if(m_uniform_grid.null())
+    if(m_uniform_grid.null()) {
+      m_errors.push_back(param + " value is ill-defined");
       return(false);
+    }
   }
   else if((param=="refine_region")||(param=="focus_region")) {
-    if(m_refine_regions.size() != m_refine_pieces.size())
+    if(m_refine_regions.size() != m_refine_pieces.size()) {
+      m_errors.push_back(param + " and refine_piece must be added in pairs");
       return(false);
-    IvPBox refine_region = stringFloatToRegionBox(value, m_domain, ',', ':');
-    if(refine_region.null())
+    }
+    IvPBox refine_region = stringToRegionBox(value, m_domain, ',', ':');
+    if(refine_region.null()) {
+      //cout << "Bad Region Box" << endl;
+      m_errors.push_back(param + " value is ill-defined");
       return(false);
+    }
     else
       m_refine_regions.push_back(refine_region);
   }
   else if((param=="refine_piece")||(param=="focus_box")) {
-    if((m_refine_regions.size() - m_refine_pieces.size()) != 1)
+    if((m_refine_regions.size() - m_refine_pieces.size()) != 1) {
+      m_errors.push_back(param + " and refine_region must be added in pairs");
       return(false);
+    }
     IvPBox refine_piece = stringToPointBox(value, m_domain, ',', ':');
     if(refine_piece.null()) {
       m_refine_regions.pop_back();
+      m_errors.push_back(param + " value is ill-defined");
       return(false);
     }
     m_refine_pieces.push_back(refine_piece);
@@ -222,35 +268,59 @@ bool OF_Reflector::setParam(string param, string value)
   }
   else if(param == "refine_point") {
     IvPBox refine_point = stringToPointBox(value, m_domain, ',', ':');
-    if(refine_point.null() || !refine_point.isPtBox())
+    if(refine_point.null() || !refine_point.isPtBox()) {
+      m_errors.push_back(param + " value is ill-defined");
       return(false);
+    }
     m_refine_points.push_back(refine_point);
   }
   else if((param=="smart_amount")||(param=="priority_amt")) {
     int smart_amount = atoi(value.c_str());
-    if(!isNumber(value) || (smart_amount < 0))
+    if(!isNumber(value)) {
+      m_errors.push_back(param + " value must be numerical");
       return(false);
+    }
+    if(smart_amount < 0) {
+      m_errors.push_back(param + " value must be >= 0");
+      return(false);
+    }
     m_smart_amount = smart_amount;
   }
   else if(param == "smart_percent") {
     int smart_percent = atoi(value.c_str());
-    if(!isNumber(value) || (smart_percent < 0))
+    if(!isNumber(value)) {
+      m_errors.push_back("smart_percent value must be numerical");
       return(false);
+    }
+    if(smart_percent < 0) {
+      m_errors.push_back("smart_percent value must be >= 0");
+      return(false);
+    }
     m_smart_percent = smart_percent;
   }
   else if((param=="smart_thresh")||(param=="priority_thresh")) {
     double smart_thresh = atof(value.c_str());
-    if(!isNumber(value) || (smart_thresh < 0))
+    if(!isNumber(value)) {
+      m_errors.push_back(param + " value must be numerical");
       return(false);
+    }
+    if(smart_thresh < 0) {
+      m_errors.push_back(param + " value must be >= 0");
+      return(false);
+    }
     m_smart_thresh = smart_thresh;
   }
   else if(param == "auto_peak") {
-    if((value != "true") && (value != "false"))
+    if((value != "true") && (value != "false")) {
+      m_errors.push_back("auto_peak value must be true/false");
       return(false);
+    }
     m_auto_peak = (value == "true");
   }
-  else
+  else {
+    m_errors.push_back(param + ": undefined parameter");
     return(false);
+  }
   
   return(true);
 }
@@ -258,27 +328,42 @@ bool OF_Reflector::setParam(string param, string value)
 //-------------------------------------------------------------
 // Procedure: setParam
 
-bool OF_Reflector::setParam(string param, int value)
+bool OF_Reflector::setParam(string param, double value)
 {
   param = tolower(stripBlankEnds(param));
   
   if((param=="uniform_amount")||(param=="uniform_amt")) {
-    if(value < 1)
+    if(value < 1) {
+      m_errors.push_back(param + " value must be >= 1");
       return(false);
-    m_uniform_amount = value;
+    }
+    m_uniform_amount = (int)(value);
   }
   else if((param=="smart_amount")||(param=="priority_amt")) {
-    if(value < 0)
+    if(value < 0) {
+      m_errors.push_back(param + " value must be >= 0");
       return(false);
-    m_smart_amount = value;
+    }
+    m_smart_amount = (int)(value);
   }
   else if(param == "smart_percent") {
-    if(value < 0)
+    if(value < 0) {
+      m_errors.push_back(param + " value must be >= 0");
       return(false);
-    m_smart_percent = value;
+    }
+    m_smart_percent = (int)(value);
   }
-  else
+  else if(param=="smart_thresh") {
+    if(value < 0) {
+      m_errors.push_back(param + " value must be >= 0");
+      return(false);
+    }
+    m_smart_thresh = value;
+  }
+  else {
+    m_errors.push_back(param + ": undefined parameter");
     return(false);
+  }
   
   return(true);
 }
@@ -353,8 +438,8 @@ int OF_Reflector::create(int unif_amt, int smart_amt,
   for(i=0; i<reg_size; i++) {
     IvPBox region = m_refine_regions[i];
     IvPBox resbox = m_refine_pieces[i];
-    PDMap *new_pdmap = m_rt_focus->create(m_pdmap, region, 
-					  resbox, m_pqueue);
+    PDMap *new_pdmap = m_rt_directed->create(m_pdmap, region, 
+					     resbox, m_pqueue);
     if(new_pdmap != 0)
       m_pdmap = new_pdmap;
   }
@@ -379,8 +464,8 @@ int OF_Reflector::create(int unif_amt, int smart_amt,
       int  pct_amt = (psize * m_smart_percent) / 100;
       if(pct_amt > m_smart_amount)
 	use_amt = pct_amt;    
-      PDMap *new_pdmap = m_rt_priority->create(m_pdmap, m_pqueue, use_amt, 
-					       m_smart_thresh);
+      PDMap *new_pdmap = m_rt_smart->create(m_pdmap, m_pqueue, use_amt, 
+					    m_smart_thresh);
       if(new_pdmap != 0)
 	m_pdmap = new_pdmap;
     }
@@ -391,6 +476,19 @@ int OF_Reflector::create(int unif_amt, int smart_amt,
 
   m_uniform_piece_str += ", sref_pcs:";
   m_uniform_piece_str += (intToString(pcs_made_sref));
+  
+  if(!m_pdmap)  // This should never happen, but check anyway.
+    return(0);
+
+  // =============  Stage 4 - AutoPeak Refinement ================
+
+  //cout << "In OF_Reflector::autopeak " << endl;
+  if(m_auto_peak) {
+    //cout << "  - performing autopeak " << endl;
+    PDMap *new_pdmap = m_rt_autopeak->create(m_pdmap);
+    if(new_pdmap != 0) 
+      m_pdmap = new_pdmap;
+  }
   
   if(m_pdmap)
     return(m_pdmap->size());

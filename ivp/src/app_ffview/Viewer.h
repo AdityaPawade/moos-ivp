@@ -38,21 +38,21 @@ public:
 
   void   toggleAOF()              {m_draw_aof = !m_draw_aof; redraw();};
   void   toggleIPF()              {m_draw_ipf = !m_draw_ipf; redraw();};
-  void   toggleStrict()           {m_strict_rng = !m_strict_rng; redraw();};
-  void   toggleUniformAug();
   void   toggleSmartAug();
-  void   makeUniformIPF(int=0);
+  void   makeUniformIPF();
   void   makeUniformIPFxN(int amt);
   void   modColorMap(const std::string&);
   void   modPatchAOF(int amt);
   void   modUniformAug(int amt);
-  void   modSmartAugAmt(int amt);
 
   void   runScript();
   void   capture(int);
 
   void   takeSamples(int amt)     {m_rater.takeSamples(amt);};
   double getParam(const std::string&, bool&);
+
+  std::string getParam(const std::string&);
+  std::string getPeakDelta();
 
 protected:
   void   drawIvPFunction(IvPFunction*);
@@ -65,22 +65,32 @@ private:
   float      m_base_ipf;
   float      m_scale;
   int        m_patch;
-  int        m_unifsize;
   bool       m_draw_aof;
   bool       m_draw_ipf;
   AOF_Cache  m_aof_cache;
   IvPDomain  m_domain;
   FColorMap  m_cmap;
-  bool       m_strict_rng;
+  bool       m_strict_range;
   double     m_create_time;
 
   IvPFunction *m_unif_ipf;
   OF_Rater     m_rater;
 
-  bool       m_smart_refine;
-  int        m_smart_count;
+  bool        m_smart_refine;
+  bool        m_directed_refine;
+  bool        m_autopeak_refine;
 
-  bool       m_focus_box;
+  std::string m_uniform_piece_str;
+  int         m_uniform_piece_size;
+
+  std::string m_refine_region_str;
+  std::string m_refine_piece_str;
+  std::string m_smart_percent_str;
+  std::string m_smart_amount_str;
+
+  std::string m_reflector_errors;
+  std::string m_aof_peak;
+
   int        m_focus_box_x;
   int        m_focus_box_y;
   int        m_focus_box_len;

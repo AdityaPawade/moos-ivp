@@ -28,30 +28,29 @@ Viewer::Viewer(int x, int y,
 	       int width, int height, const char *l)
   : Common_IPFViewer(x,y,width,height,l)
 {
-  m_base_aof   = -100;      // For shifting the AOF rendering
-  m_base_ipf   =  150;      // For shifting the IPF rendering
+  m_base_aof   = -232;      // For shifting the AOF rendering
+  m_base_ipf   = -35;       // For shifting the IPF rendering
   m_patch      = 5;         // Size of patch rendering the AOF
   m_draw_aof   = true;
   m_draw_ipf   = true;
   m_unif_ipf   = 0;
-  m_unifsize   = 10;
   m_polar      = 0;
-  m_strict_rng = true;
+  m_strict_range = true;
   m_create_time = -1;
 
+  setParam("uniform_piece", 10);
   setParam("set_scale", 1);
   setParam("reset_view", "1");
   setParam("clear_color", "white");
   setParam("frame_color", "gray");
 
   m_smart_refine   = false;
-  m_smart_count    = 1000;
 
-  m_focus_box      = false;
-  m_focus_box_x    = 0;
-  m_focus_box_y    = 0;
-  m_focus_box_len  = 100;
-  m_focus_unif_len = 5;
+  m_directed_refine = false;
+  m_focus_box_x     = 0;
+  m_focus_box_y     = 0;
+  m_focus_box_len   = 100;
+  m_focus_unif_len  = 5;
 
   m_zoom = m_zoom * 1.25 * 1.25;  // Two zoom clicks in.
 }
@@ -141,6 +140,52 @@ bool Viewer::setParam(string param, string value)
   if(Common_IPFViewer::setParam(param, value))
     return(true);
 
+  if(param == "uniform_piece")
+    m_uniform_piece_str = stripBlankEnds(value);
+  else if(param == "refine_region")
+    m_refine_region_str = stripBlankEnds(value);
+  else if(param == "smart_percent")
+    m_smart_percent_str = stripBlankEnds(value);
+  else if(param == "smart_amount")
+    m_smart_amount_str = stripBlankEnds(value);
+  else if(param == "refine_piece")
+    m_refine_piece_str = stripBlankEnds(value);
+  else if(param == "aof_peak")
+    m_aof_peak = stripBlankEnds(value);
+  else if(param == "directed_refine") {
+    value = tolower(value);
+    if(value == "toggle")
+      m_directed_refine = !m_directed_refine;
+    else if((value == "off") || (value == "false"))
+      m_directed_refine = false;
+    else if((value == "on") || (value == "true"))
+      m_directed_refine = true;
+    else
+      return(false);
+  }
+  else if(param == "auto_peak") {
+    value = tolower(value);
+    if(value == "toggle")
+      m_autopeak_refine = !m_autopeak_refine;
+    else if((value == "off") || (value == "false"))
+      m_autopeak_refine = false;
+    else if((value == "on") || (value == "true"))
+      m_autopeak_refine = true;
+    else
+      return(false);
+  }
+  else if(param == "strict_range") {
+    value = tolower(value);
+    if(value == "toggle")
+      m_strict_range = !m_strict_range;
+    else if((value == "off") || (value == "false"))
+      m_strict_range = false;
+    else if((value == "on") || (value == "true"))
+      m_strict_range = true;
+    else
+      return(false);
+  }
+
   return(true);
 }
 
@@ -170,6 +215,18 @@ bool Viewer::setParam(string param, double value)
     if(m_scale < 0)
       m_scale = 0;
   }
+  else if(param == "uniform_piece") {
+    if(value >= 1) {
+      m_uniform_piece_size = (int)(value);
+      m_uniform_piece_str  = "";
+    }
+  }
+  else if(param == "mod_focus_len") {
+    m_focus_unif_len += (int)(value);
+    if(m_focus_unif_len < 1)
+      m_focus_unif_len = 1;
+    m_refine_piece_str  = "";
+  }
   else
     return(false);
 
@@ -189,19 +246,6 @@ void Viewer::printParams()
   cout << "set_base_ipf=" << m_base_ipf << endl;
   cout << "set_base_aof=" << m_base_aof << endl;
 }
-
-
-//-------------------------------------------------------------
-// Procedure: toggleUniformAug
-
-void Viewer::toggleUniformAug()
-{
-  m_focus_box = !m_focus_box;
-
-  if(m_unif_ipf)
-    makeUniformIPF();
-}
-
 
 //-------------------------------------------------------------
 // Procedure: toggleSmartAug
@@ -232,60 +276,71 @@ void Viewer::makeUniformIPFxN(int iterations)
 //-------------------------------------------------------------
 // Procedure: makeUniformIPF
 
-void Viewer::makeUniformIPF(int usize)
+void Viewer::makeUniformIPF()
 {
   AOF *aof = m_aof_cache.getAOF();
   if(!aof)
     return;
 
-  if(usize <= 0)
-    usize = m_unifsize;
-  else
-    m_unifsize = usize;
-
   OF_Reflector reflector(aof, 1);
 
-  bool ok = true;
   string dim0_name = m_domain.getVarName(0);
   string dim1_name = m_domain.getVarName(1);
 
-  // Example String: "discrete @ x:40,y:20"
-  string unif_str = "discrete @ ";
-  unif_str += dim0_name + ":" + intToString(usize) + ",";
-  unif_str += dim1_name + ":" + intToString(usize);
+  if(m_uniform_piece_str == "") {
+    m_uniform_piece_str = "discrete @ ";
+    m_uniform_piece_str += dim0_name + ":";
+    m_uniform_piece_str += intToString(m_uniform_piece_size) + ",";
+    m_uniform_piece_str += dim1_name + ":";
+    m_uniform_piece_str += intToString(m_uniform_piece_size);
+  }
 
-  ok = ok && reflector.setParam("uniform_piece", unif_str);
+  reflector.setParam("uniform_piece", m_uniform_piece_str);
 
-  if(m_strict_rng)
-    ok = ok && reflector.setParam("strict_range", "true");
+  if(m_strict_range)
+    reflector.setParam("strict_range", "true");
   else
-    ok = ok && reflector.setParam("strict_range", "false");
+    reflector.setParam("strict_range", "false");
   
-  if(m_focus_box) {
-    string foc_region1 = "";
-    foc_region1 += dim0_name + ":" + "100:300" + ",";
-    foc_region1 += dim1_name + ":" + "100:300";
+  if(m_directed_refine) {
+    if(m_refine_region_str == "") {
+      m_refine_region_str = "native @";
+      m_refine_region_str += dim0_name + ":" + "-50:150" + ",";
+      m_refine_region_str += dim1_name + ":" + "-250:-50";
+    }
     
-    string res_box = "discrete @";
-    res_box += dim0_name + ":" + intToString(m_focus_unif_len) + ",";
-    res_box += dim1_name + ":" + intToString(m_focus_unif_len);
+    if(m_refine_piece_str == "") {
+      m_refine_piece_str = "discrete @";
+      m_refine_piece_str += dim0_name + ":";
+      m_refine_piece_str += intToString(m_focus_unif_len) + ",";
+      m_refine_piece_str += dim1_name + ":";
+      m_refine_piece_str += intToString(m_focus_unif_len);
+    }
     
-    string foc_region2 = "";
-    foc_region2 += dim0_name + ":" + "285:410" + ",";
-    foc_region2 += dim1_name + ":" + "0:110";
-    
-    ok = ok && reflector.setParam("refine_region", foc_region1);
-    ok = ok && reflector.setParam("refine_piece", res_box);
-    ok = ok && reflector.setParam("refine_region", foc_region2);
-    ok = ok && reflector.setParam("refine_piece", res_box);    
+    reflector.setParam("refine_region", m_refine_region_str);
+    reflector.setParam("refine_piece",  m_refine_piece_str);
   }
   
   if(m_smart_refine) {
-    string pstr = intToString(m_smart_count);
-    ok = ok && reflector.setParam("smart_amount", pstr);
+    if(m_smart_percent_str != "")
+      reflector.setParam("smart_percent", m_smart_percent_str);
+    if(m_smart_amount_str != "")
+      reflector.setParam("smart_amount",  m_smart_amount_str);
   }
 
-  reflector.create();
+  if(m_autopeak_refine)
+    reflector.setParam("auto_peak", "true");
+  else
+    reflector.setParam("auto_peak", "false");
+
+  if(reflector.hasErrors() == false) {
+    reflector.create();
+    m_reflector_errors = "";
+  }
+  else {
+    m_reflector_errors = reflector.getErrors();
+    cout << "Errs: " << m_reflector_errors << endl;
+  }
 
   if(m_unif_ipf)
     delete(m_unif_ipf);
@@ -294,7 +349,7 @@ void Viewer::makeUniformIPF(int usize)
 
   if(m_unif_ipf && m_unif_ipf->getPDMap())
     m_rater.setPDMap(m_unif_ipf->getPDMap());
-
+  redraw();
 }
 
 //-------------------------------------------------------------
@@ -327,20 +382,6 @@ void Viewer::modUniformAug(int amt)
   m_focus_unif_len += amt; 
   if(m_focus_unif_len < 1)  
     m_focus_unif_len = 1; 
-
-  if(m_unif_ipf)
-    makeUniformIPF();
-
-  redraw();
-}
-
-//-------------------------------------------------------------
-// Procedure: modSmartAugAmt
-
-void Viewer::modSmartAugAmt(int amt)
-{
-  if(amt >= 0)
-    m_smart_count = amt;
 
   if(m_unif_ipf)
     makeUniformIPF();
@@ -431,6 +472,37 @@ double Viewer::getParam(const string& param, bool&ok)
 
   ok = false;
   return(0);
+}
+
+//-------------------------------------------------------------
+// Procedure: getParam()
+
+string Viewer::getParam(const string& param)
+{
+  if(param == "uniform_piece")
+    return(m_uniform_piece_str);
+  else if(param == "refine_region")
+    return(m_refine_region_str);
+  else if(param == "refine_piece")
+    return(m_refine_piece_str);
+  else if(param == "reflector_errors")
+    return(m_reflector_errors);
+  else if(param == "auto_peak") {
+    if(m_autopeak_refine)
+      return("true");
+    else
+      return("false");
+  }
+  
+  return("");
+}
+
+//-------------------------------------------------------------
+// Procedure: getPeakDelta
+
+string Viewer::getPeakDelta()
+{
+  return("");
 }
 
 //-------------------------------------------------------------

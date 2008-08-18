@@ -36,6 +36,7 @@
 #include "MarineViewer.h"
 #include "XYCircle.h"
 #include "MOOSGeodesy.h"
+#include "MOOSLock.h"
 
 class SSV_Viewer : public MarineViewer
 {
@@ -65,6 +66,7 @@ public:
   float getCrs(int);
   bool  getLatLon(int, double&, double&);
   float getAgeAIS(int);
+  float getRelativeInfo(int index, std::string info_type);
 
   bool  hasVehiName(std::string);
   std::string getVehiName(int);
@@ -91,6 +93,9 @@ public:
   void  drawAGateways();
   void  drawBGateways();
   void  drawEFields();
+  void  mutexLock()   {m_mutex.Lock();};
+  void  mutexUnLock() {m_mutex.UnLock();};
+
 
  private:
   void  drawVehicle(std::string, bool, std::string);
@@ -99,6 +104,7 @@ public:
   void  handleLeftMouse(int, int);
   void  handleRightMouse(int, int);
   void  drawRadials();
+  void  drawBearingLine(int);
   void  drawStationCircles();
   void  drawCirc(XYCircle, int, bool, double, double, double,
 		 double=0, double=0, double=0);
@@ -135,6 +141,7 @@ public:
   int    m_right_click_ix;
 
   bool   m_centric_view;
+  bool   m_draw_bearing_lines;
   int    m_radial_size;
   float  m_curr_time;
 
@@ -157,6 +164,8 @@ public:
   std::vector<double>    m_range_sensor_x;
   std::vector<double>    m_range_sensor_y;
   std::vector<double>    m_range_sensor_s;
+
+  CMOOSLock  m_mutex;
 };
 
 #endif 

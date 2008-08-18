@@ -44,8 +44,8 @@ using namespace std;
 BHV_Trail::BHV_Trail(IvPDomain gdomain) : IvPBehavior(gdomain)
 {
   this->setParam("descriptor", "(d)trail");
-  this->setParam("build_info", "uniform_piece=course:3,speed:2");
-  this->setParam("build_info", "uniform_grid=course:9,speed:6");
+  this->setParam("build_info", "uniform_piece=discrete@course:3,speed:2");
+  this->setParam("build_info", "uniform_grid =discrete@course:9,speed:6");
   
   m_domain = subDomain(m_domain, "course,speed");
   
@@ -227,9 +227,12 @@ IvPFunction *BHV_Trail::onRunState()
 	return(0);
       }
       
-      OF_Reflector reflector(&aof, 1);
+      OF_Reflector reflector(&aof);
       reflector.create(m_build_info);
-      ipf = reflector.extractOF();
+      if(reflector.hasErrors())
+	postWMessage(reflector.getErrors());
+      else
+	ipf = reflector.extractOF();
     }
     else { // inside nm_radius
       postMessage("REGION", "Inside nm_radius");

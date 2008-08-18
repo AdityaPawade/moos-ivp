@@ -42,12 +42,13 @@ SSV_Viewer::SSV_Viewer(int x, int y, int w, int h, const char *l)
   m_curr_time   = 0;
   m_tiff_offon  = 1;
 
-  m_default_vehibody  = "kayak";
-  m_left_click_ix     = 0;
-  m_right_click_ix    = 0;
-  m_radial_size       = 100;
-  m_trail_size        = 0.1;
-  m_centric_view      = true;
+  m_default_vehibody   = "kayak";
+  m_left_click_ix      = 0;
+  m_right_click_ix     = 0;
+  m_radial_size        = 100;
+  m_trail_size         = 0.1;
+  m_centric_view       = true;
+  m_draw_bearing_lines = true;
 }
 
 //-------------------------------------------------------------
@@ -55,6 +56,7 @@ SSV_Viewer::SSV_Viewer(int x, int y, int w, int h, const char *l)
 
 void SSV_Viewer::draw()
 {
+  mutexLock();
   MarineViewer::draw();
 
   drawOpAreaGrid();
@@ -72,6 +74,8 @@ void SSV_Viewer::draw()
   drawStationCircles();
   drawCircles();
   drawRadials();
+  if(m_draw_bearing_lines)
+    drawBearingLine(m_global_ix);
 
   // Next draw the ownship vehicle shape. If the vehicle 
   // index is the one "active", draw it in a different color.
@@ -110,6 +114,7 @@ void SSV_Viewer::draw()
     drawPoints(p2->second);
 
   glFlush();
+  mutexUnLock();
 }
 
 //-------------------------------------------------------------
@@ -334,6 +339,50 @@ float SSV_Viewer::getAgeAIS(int index)
     return(m_curr_time - p1->second);
   else 
     return(-1);
+}
+
+// ----------------------------------------------------------
+// Procedure: getRelativeInfo
+//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. 
+
+float SSV_Viewer::getRelativeInfo(int index, string info_type)
+{
+  if(m_cross_offon)
+    return(-1);
+
+  string vname = getVehiName(index);
+  if((vname=="") || (vname == m_ownship_name) || (m_ownship_name==""))
+    return(-1);
+  
+  map<string,ObjectPose>::iterator p;
+  p = m_pos_map.find(vname);
+  if(p == m_pos_map.end())
+    return(-1);
+  ObjectPose pose_vh = p->second;
+
+  p = m_pos_map.find(m_ownship_name);
+  if(p == m_pos_map.end())
+    return(-1);
+  ObjectPose pose_os = p->second;
+
+  double os_x = pose_os.getX();
+  double os_y = pose_os.getY();
+  double vh_x = pose_vh.getX();
+  double vh_y = pose_vh.getY();
+
+  double bearing = relAng(os_x, os_y, vh_x, vh_y);
+
+  info_type = tolower(info_type);
+  if(info_type == "bearing")
+    return(angle360(bearing));
+  
+  double rbearing = bearing - pose_os.getTheta();
+  if(info_type == "relative_bearing")
+    return(angle360(rbearing));
+  
+  if(info_type == "range")
+    return(hypot((os_x - vh_x), (os_y - vh_y)));
 }
 
 // ----------------------------------------------------------
@@ -577,6 +626,17 @@ bool SSV_Viewer::setParam(string param, string value)
   else if(param == "op_area") {
     m_op_area = value;
   }
+  else if(param == "bearing_lines") {
+    if(value == "toggle")
+      m_draw_bearing_lines = !m_draw_bearing_lines;
+    else if((value == "on") || (value == "true"))
+      m_draw_bearing_lines = true;
+    else if((value == "off") || (value == "false"))
+      m_draw_bearing_lines = false;
+    else
+      return(false);
+  }
+
   else
     return(false);
 
@@ -620,7 +680,6 @@ bool SSV_Viewer::setParam(string param, float v)
   return(true);
 
 }
-
 
 //-------------------------------------------------------------
 // Procedure: drawRadials
@@ -702,6 +761,61 @@ void SSV_Viewer::drawRadials()
     glDisable(GL_LINE_STIPPLE);
 
   delete [] points;
+  glFlush();
+  glPopMatrix();
+}
+
+//-------------------------------------------------------------
+// Procedure: drawBearingLine
+
+void SSV_Viewer::drawBearingLine(int index)
+{
+  string vname = getVehiName(index);
+  if((vname=="") || (vname == m_ownship_name) || (m_ownship_name==""))
+    return;
+  
+  map<string,ObjectPose>::iterator p;
+  p = m_pos_map.find(vname);
+  if(p == m_pos_map.end())
+    return;
+  ObjectPose pose_vh = p->second;
+
+  p = m_pos_map.find(m_ownship_name);
+  if(p == m_pos_map.end())
+    return;
+  ObjectPose pose_os = p->second;
+
+  float pt_0 = pose_os.getX() * m_back_img.get_pix_per_mtr();
+  float pt_1 = pose_os.getY() * m_back_img.get_pix_per_mtr();
+  float pt_2 = pose_vh.getX() * m_back_img.get_pix_per_mtr();
+  float pt_3 = pose_vh.getY() * m_back_img.get_pix_per_mtr();
+  
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+
+  // Draw the edges 
+  glLineWidth(1.0);
+  glColor3f(0.0, 0.2, 1.0);
+  glBegin(GL_LINE_STRIP);
+
+  glBegin(GL_LINE_STRIP);
+  glVertex2f(pt_0, pt_1);
+  glVertex2f(pt_2, pt_3);
+  glEnd();
+
   glFlush();
   glPopMatrix();
 }

@@ -44,8 +44,8 @@ BHV_AvoidObstacles::BHV_AvoidObstacles(IvPDomain gdomain) :
   IvPBehavior(gdomain)
 {
   this->setParam("descriptor", "(d)bhv_avoid_obstacles");
-  this->setParam("build_info", "uniform_piece=course:1,speed:1");
-  this->setParam("build_info", "uniform_grid=course:9,speed:6");
+  this->setParam("build_info", "uniform_piece=discrete@course:1,speed:1");
+  this->setParam("build_info", "uniform_grid =discrete@course:9,speed:6");
 
   m_domain = subDomain(m_domain, "course,speed");
 
@@ -154,21 +154,18 @@ IvPFunction *BHV_AvoidObstacles::onRunState()
     postEMessage("BHV_AvoidObstacles: AOF-Init Error");
     return(0);
   }
+
   IvPFunction *ipf = 0;
 
   OF_Reflector reflector(&aof_avoid, 1);
   reflector.create(m_build_info);
-  ipf = reflector.extractOF(false);
+  if(reflector.hasErrors())
+    postWMessage(reflector.getErrors());
+  else {
+    ipf = reflector.extractOF(true); // true means normalize [0,100]
+    ipf->setPWT(m_priority_wt);
+  }
   
-  ipf->setPWT(m_priority_wt);
-
-#if 0
-  IvPBox mpt = ipf->getPDMap()->getGrid()->getMaxPt();
-  cout << "BHV_AvoidObstacles::produceOF():" << endl;
-  cout << "maxpt:" << endl;
-  mpt.print();
-#endif
-
   return(ipf);
 }
 

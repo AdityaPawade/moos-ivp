@@ -57,6 +57,9 @@ private:
   inline void cb_Radial_i(int);
   static void cb_Radial(Fl_Widget*, int);
 
+  inline void cb_Bearings_i();
+  static void cb_Bearings(Fl_Widget*);
+
   inline void cb_CycleFocus_i(int);
   static void cb_CycleFocus(Fl_Widget*, int);
 
@@ -79,6 +82,8 @@ protected:
   MY_Output  *v_lon;
   MY_Output  *d_hash;
   MY_Output  *d_radial;
+  MY_Output  *m_rbearing;
+  MY_Output  *m_contact_range;
 
   Fl_Box     *m_deploy_box_text;
   Fl_Box     *m_deploy_box_body;

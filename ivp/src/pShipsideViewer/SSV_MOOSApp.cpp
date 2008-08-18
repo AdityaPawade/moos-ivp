@@ -38,6 +38,8 @@ bool SSV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
   double curr_time = MOOSTime() - m_start_time;
   m_gui->mviewer->setTime(curr_time);
 
+  m_gui->mviewer->mutexLock();
+
   //cout  << NewMail.size() << "," << flush;
   for(p = NewMail.rbegin();p!=NewMail.rend();p++) {
     CMOOSMsg &Msg = *p;
@@ -94,6 +96,8 @@ bool SSV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
     }
     //cout << "Originating community: " << Msg.m_sOriginatingCommunity << endl;
   }
+  m_gui->mviewer->mutexUnLock();
+
   if(gui_needs_redraw && m_gui) {
     m_gui->updateXY();
     m_gui->mviewer->redraw();
@@ -224,20 +228,25 @@ bool SSV_MOOSApp::OnStartUp()
     
     if(MOOSStrCmp(sVarName, "OP_AREA"))
       op_area = tolower(sLine);
-    if(MOOSStrCmp(sVarName, "VEHICOLOR"))
-      m_gui->mviewer->colorMapping(sLine);
-    if(MOOSStrCmp(sVarName, "OWNSHIP_NAME"))
+    else if(MOOSStrCmp(sVarName, "VEHICOLOR"))
+      m_gui->mviewer->setColorMapping(sLine);
+    else if(MOOSStrCmp(sVarName, "OWNSHIP_NAME"))
       m_gui->mviewer->setOwnShipName(sLine);
-    if(MOOSStrCmp(sVarName, "CONTACTS"))
+    else if(MOOSStrCmp(sVarName, "CONTACTS"))
       handleContactList(sLine);
-    if(MOOSStrCmp(sVarName, "PORTABLE_RANGE_SENSOR"))
+    else if(MOOSStrCmp(sVarName, "PORTABLE_RANGE_SENSOR"))
       handleMarker("portable_range_sensor", sLine);
-    if(MOOSStrCmp(sVarName, "GATEWAYA"))
+    else if(MOOSStrCmp(sVarName, "GATEWAYA"))
       handleMarker("gateway_a", sLine);
-    if(MOOSStrCmp(sVarName, "GATEWAYB"))
+    else if(MOOSStrCmp(sVarName, "GATEWAYB"))
       handleMarker("gateway_b", sLine);
-    if(MOOSStrCmp(sVarName, "EFIELD"))
+    else if(MOOSStrCmp(sVarName, "EFIELD"))
       handleMarker("efield", sLine);
+    else { 
+      bool handled = m_gui->mviewer->setParam(sVarName, sLine);
+      if(!handled)
+	m_gui->mviewer->setParam(sVarName, atof(sLine.c_str()));
+    }
   }
 
   m_start_time = MOOSTime();
@@ -295,8 +304,8 @@ bool SSV_MOOSApp::receiveAIS_REPORT(CMOOSMsg &Msg)
 
 bool SSV_MOOSApp::receiveGRID_CONFIG(CMOOSMsg &Msg)
 {
-  cout << "RECEIVED GRID CONFIGURATION!!!!" << endl << flush;
-  cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
+  //cout << "RECEIVED GRID CONFIGURATION!!!!" << endl << flush;
+  //cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
   XYGrid search_grid;
   
   bool ok = search_grid.initialize(Msg.m_sVal);
@@ -318,7 +327,6 @@ bool SSV_MOOSApp::receivePolygon(CMOOSMsg &Msg)
   XYPolygon new_poly = stringToPoly(Msg.m_sVal);
   
   if(new_poly.size() != 0) {
-    cout << "Receieved OK poly of size: " << new_poly.size() << endl;
     m_gui->addPoly(new_poly);
     return(true);
   }
@@ -334,7 +342,6 @@ bool SSV_MOOSApp::receivePolygon(CMOOSMsg &Msg)
 
 bool SSV_MOOSApp::receiveSegList(CMOOSMsg &Msg)
 {
-  cout << "In SSV_MOOSApp::receiveSegList()" << endl;
   XYSegList new_seglist = stringToSegList(Msg.m_sVal);
   
   bool ok = (new_seglist.size() > 0);
@@ -390,8 +397,8 @@ bool SSV_MOOSApp::receiveStationCircle(CMOOSMsg &Msg)
 
 void SSV_MOOSApp::receiveGRID_DELTA(CMOOSMsg &Msg)
 {
-  cout << "RECEIVED GRID ----------- DELTA   !!!!" << endl << flush;
-  cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
+  //cout << "RECEIVED GRID ----------- DELTA   !!!!" << endl << flush;
+  //cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
   m_gui->mviewer->updateGrid(Msg.m_sVal);
 }
 

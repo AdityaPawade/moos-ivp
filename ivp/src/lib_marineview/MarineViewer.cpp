@@ -867,9 +867,9 @@ bool MarineViewer::setCommonParam(string param, string value)
   if(param == "cross_view") {
     if(value == "toggle")
       m_cross_offon = !m_cross_offon;
-    else if(value == "on")
+    else if((value == "on") || (value == "true"))
       m_cross_offon = true;
-    else if(value == "off")
+    else if((value == "off") || (value == "false"))
       m_cross_offon = false;
     else
       return(false);
@@ -888,9 +888,9 @@ bool MarineViewer::setCommonParam(string param, string value)
   else if(param == "tiff_view") {
     if(value == "toggle")
       m_tiff_offon = !m_tiff_offon;
-    else if(value == "on")
+    else if((value == "on") || (value == "true"))
       m_tiff_offon = true;
-    else if(value == "off")
+    else if((value == "off") || (value == "false"))
       m_tiff_offon = false;
     else
       return(false);
@@ -898,9 +898,9 @@ bool MarineViewer::setCommonParam(string param, string value)
   else if(param == "hash_view") {
     if(value == "toggle")
       m_hash_offon = !m_hash_offon;
-    else if(value == "on")
+    else if((value == "on") || (value == "true"))
       m_hash_offon = true;
-    else if(value == "off")
+    else if((value == "off") || (value == "false"))
       m_hash_offon = false;
     else
       return(false);
@@ -908,9 +908,9 @@ bool MarineViewer::setCommonParam(string param, string value)
   else if(param == "trail_view") {
     if(value == "toggle")
       m_trails = !m_trails;
-    else if(value == "on")
+    else if((value == "on") || (value == "true"))
       m_trails = true;
-    else if(value == "off")
+    else if((value == "off") || (value == "false"))
       m_trails = false;
     else
       return(false);
@@ -918,9 +918,9 @@ bool MarineViewer::setCommonParam(string param, string value)
   else if(param == "trail_connect") {
     if(value == "toggle")
       m_trail_connect = !m_trail_connect;
-    else if(value == "on")
+    else if((value == "on") || (value == "true"))
       m_trail_connect = true;
-    else if(value == "off")
+    else if((value == "off") || (value == "false"))
       m_trail_connect = false;
     else
       return(false);
@@ -1226,25 +1226,28 @@ double MarineViewer::getHashDelta()
 }
 
 //-------------------------------------------------------------
-// Procedure: colorMapping
+// Procedure: setColorMapping
 //            "label, DarkKhaki"
 //            "label, hex, bd, b7, 6b"
 //            "label, 0.741, 0.718, 0.420"
 
-void MarineViewer::colorMapping(const string& str)
+void MarineViewer::setColorMapping(const string& str)
 {
   vector<string> pair = chompString(str, ',');
-  string vname = stripBlankEnds(pair[0]);
-  string color = stripBlankEnds(pair[1]);
+  string attribute = stripBlankEnds(pair[0]);
+  string color_str = stripBlankEnds(pair[1]);
 
-  vector<double> cvector = colorParse(color);
+  vector<double> color_vector = colorParse(color_str);
   
+  m_color_map[attribute] = color_vector;
+  return;
+
   map<string,vector<double> >::iterator p1;
-  p1 = m_color_map.find(vname);
+  p1 = m_color_map.find(attribute);
   if(p1 != m_color_map.end())
-    p1->second = cvector;
+    p1->second = color_vector;
   else {
-    m_color_map[vname] = cvector;
+    m_color_map[attribute] = color_vector;
   }
 }
 
@@ -1356,15 +1359,26 @@ void MarineViewer::drawCommonVehicle(string vname, ObjectPose opose,
     drawGLPoly(g_gliderBody, g_gliderBodySize, 0,0,0, 1, g_gliderScale);
     glTranslatef(cx, cy, 0);
   }
-  else {  // vehibody == "ship" is the default
-    double cx = g_shipCtrX * g_shipScale;
-    double cy = g_shipCtrY * g_shipScale;
-    glTranslatef(-cx, -cy, 0);
-    drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
-    if(outer_line > 0)
-      drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
-    glTranslatef(cx, cy, 0);
-  }
+  else if(vehibody == "track")
+    {  
+      double cx = g_shipCtrX * g_shipScale;
+      double cy = g_shipCtrY * g_shipScale;
+      glTranslatef(-cx, -cy, 0);
+      drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
+      if(outer_line > 0)
+	drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
+      glTranslatef(cx, cy, 0);
+    }
+  else 
+    {  // vehibody == "ship" is the default
+      double cx = g_shipCtrX * g_shipScale;
+      double cy = g_shipCtrY * g_shipScale;
+      glTranslatef(-cx, -cy, 0);
+      drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
+      if(outer_line > 0)
+	drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
+      glTranslatef(cx, cy, 0);
+    }
 
   if(m_draw_vname) {
     if(m_vname_color == 0)
