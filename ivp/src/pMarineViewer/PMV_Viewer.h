@@ -35,7 +35,6 @@
 #include "ColoredPoint.h"
 #include "MarineViewer.h"
 #include "MOOSGeodesy.h"
-#include "MOOSLock.h"
 
 class PMV_Viewer : public MarineViewer
 {
@@ -56,11 +55,14 @@ public:
 			      float theta, float spd, float dep=0);  
   void  setVehicleBodyType(const std::string&, const std::string&);
   void  resetVehicles();
+  float getMetersX(int);
+  float getMetersY(int);
+  float getSpd(int);
+  float getDep(int);
+  float getCrs(int);
+  float getAgeAIS(int);
   bool  getLatLon(int, double&, double&);
-  float getVehicleInfo(int index, std::string info_type);
   bool  initGeodesy(double, double);
-  void  mutexLock()   {m_mutex.Lock();};
-  void  mutexUnLock() {m_mutex.UnLock();};
 
   std::string getVehiName(int);
   std::string getVehiType(int);
@@ -84,6 +86,8 @@ public:
 
   ObjectPose getObjectPoseByIndex(int);
 
+  CMOOSGeodesy m_geodesy;
+
  private:
   // Mapping from Vehicle Name to Vehicle Position
   std::map<std::string, ObjectPose>   m_pos_map;
@@ -103,8 +107,6 @@ public:
   std::string m_right_click;
   int   m_left_click_ix;
   int   m_right_click_ix;
-
-  CMOOSLock  m_mutex;
 };
 
 #endif 

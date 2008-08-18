@@ -21,9 +21,8 @@
 /*****************************************************************/
 
 #include <iostream>
-#include <cmath>
-#include <cstring>
-#include <cstdlib>
+#include <math.h>
+#include <string.h>
 #include <tiffio.h>
 #include "MarineViewer.h"
 #include "MBUtils.h"
@@ -34,13 +33,8 @@
 #include "Shape_AUV.h"
 #include "Shape_Glider.h"
 #include "Shape_Gateway.h"
-#include "Shape_Diamond.h"
-#include "Shape_Triangle.h"
 #include "Shape_EField.h"
-#include "Shape_Square.h"
 #include "Shape_Kelp.h"
-#include "XYBuildUtils.h"
-
 
 using namespace std;
 
@@ -57,7 +51,6 @@ MarineViewer::MarineViewer(int x, int y, int w, int h, const char *l)
   m_hash_delta  = 100;
   m_fill_shade  = 0.7;
   m_texture_set = 0;
-  m_texture_init = false;
   m_textures    = new GLuint[1];
 
   m_trails      = true;
@@ -65,6 +58,8 @@ MarineViewer::MarineViewer(int x, int y, int w, int h, const char *l)
   m_trail_gap   = 1;
   m_trail_size  = 0.1;
   m_cross_offon = false;
+  m_poly_offon  = true;
+  m_grid_offon  = true;
   m_tiff_offon  = true;
   m_hash_offon  = false;
   m_draw_vname  = false;
@@ -109,13 +104,13 @@ bool MarineViewer::readTiffB(string filename)
 
 bool MarineViewer::setTexture()
 {
-  //static bool texture_init;
-  
   glEnable(GL_TEXTURE_2D);
   glTexEnvi(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_REPLACE);
-  if(!m_texture_init) {
-    glGenTextures(1, m_textures);
-    m_texture_init = true;
+
+  static bool texture_init;
+  if (! texture_init) {
+     glGenTextures(1, m_textures);
+     texture_init = true;
   }	  
   
   glBindTexture(GL_TEXTURE_2D, m_textures[0]);
@@ -307,9 +302,6 @@ void MarineViewer::draw()
   // Draw the datum
   if(m_draw_datum)
     drawDatum();
-
-  drawOpArea();
-  drawMarkers();
 }
 
 // ----------------------------------------------------------
@@ -386,10 +378,399 @@ void MarineViewer::drawHash()
 }
 
 //-------------------------------------------------------------
+// Procedure: drawPolys
+
+void MarineViewer::drawPolys()
+{
+  int vsize = m_poly.size();
+  for(int i=0; i<vsize; i++) 
+    drawPoly(m_poly[i]);
+}
+
+//-------------------------------------------------------------
+// Procedure: drawPoly
+
+void MarineViewer::drawPoly(const XYPolygon& poly, 
+			    bool filled, bool dashed,
+			    float edge_r, float edge_g, float edge_b,
+			    float fill_r, float fill_g, float fill_b,
+			    float vert_r, float vert_g, float vert_b,
+			    float ver1_r, float ver1_g, float ver1_b,
+			    float last_r, float last_g, float last_b)  
+{
+  unsigned int vsize = poly.size();
+  if(vsize < 1)
+    return;
+
+  unsigned int i, j;
+  float *points = new float[2*vsize];
+
+  int pindex = 0;
+  for(i=0; i<vsize; i++) {
+    points[pindex]   = poly.get_vx(i);
+    points[pindex+1] = poly.get_vy(i);
+
+    points[pindex]   *=  m_back_img.get_pix_per_mtr();
+    points[pindex+1] *=  m_back_img.get_pix_per_mtr();
+
+    pindex++;
+    pindex++;
+  }
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+
+  // Fill in the interior of polygon if it is a valid polygon
+  // with greater than two vertices. (Two vertex polygons are
+  // "valid" too, but we decide here not to draw the interior
+  if((vsize > 2) && poly.is_convex() && filled) {
+    glEnable(GL_BLEND);
+    glColor4f(fill_r,fill_g,fill_b,0.1);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_POLYGON);
+    for(i=0; i<vsize*2; i=i+2) {
+      glVertex2f(points[i], points[i+1]);
+    }
+    glEnd();
+    glDisable(GL_BLEND);
+  }
+  
+  // Now draw the edges - if the polygon is invalid, don't draw
+  // the last edge.
+  if(vsize > 2) {
+    glLineWidth(1.0);
+    if(dashed) {
+      glEnable(GL_LINE_STIPPLE);
+      GLushort pattern = 0x5555;
+      GLint factor = 5;
+      glLineStipple(factor, pattern);
+    }
+
+    glColor3f(edge_r, edge_g, edge_b);
+
+    if(poly.is_convex())
+    //if(0)
+      glBegin(GL_LINE_LOOP);
+    else
+      glBegin(GL_LINE_STRIP);
+    for(i=0; i<vsize*2; i=i+2) {
+      glVertex2f(points[i], points[i+1]);
+    }
+    glEnd();
+    if(dashed)
+      glDisable(GL_LINE_STIPPLE);
+  }
+
+  // If the polygon is just a single point, draw it big!
+  if(vsize==1) {
+    glPointSize(2.0 * m_zoom);
+    // Draw the vertices with color coding for the first and last
+    
+    //glColor3f(0.7,0.13,0.13);  // Firebrick red b2 22 22
+    glColor3f(0.13, 0.13, 0.7);  // Blueish
+    glBegin(GL_POINTS);
+    glVertex2f(points[0], points[1]);
+    glEnd();
+  }
+
+  //glPointSize(1.0 * m_zoom);
+  glPointSize(6.0);
+
+  // Draw the first vertex
+  glColor3f(ver1_r, ver1_g, ver1_b); 
+  glBegin(GL_POINTS);
+  glVertex2f(points[0], points[1]);
+  glEnd();
+
+  // Draw the vertices in between the first and last ones
+  glColor3f(vert_r, vert_g, vert_b);
+  glBegin(GL_POINTS);
+  for(j=1; j<vsize; j++) {
+    glVertex2f(points[(j*2)], points[(j*2)+1]);
+  }
+  glEnd();
+
+  // Draw the last vertex
+  if(vsize > 1) {
+    int k=vsize-1;
+    glColor3f(last_r, last_g, last_b);
+    glBegin(GL_POINTS);
+    glVertex2f(points[(k*2)], points[(k*2)+1]);
+    glEnd();
+  }
+
+  delete [] points;
+  glFlush();
+  glPopMatrix();
+}
+
+//-------------------------------------------------------------
+// Procedure: drawSegment
+//      Note: points are given in meter in local coordinates.
+
+void MarineViewer::drawSegment(float x1, float y1, float x2, float y2, 
+			       float red, float grn, float blu)
+{
+  float pix_per_mtr = m_back_img.get_pix_per_mtr();
+
+  x1 *= pix_per_mtr;
+  y1 *= pix_per_mtr;
+
+  x2 *= pix_per_mtr;
+  y2 *= pix_per_mtr;
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+  
+  glColor3f(red, grn, blu);
+  glBegin(GL_LINE_STRIP);
+  glVertex2f(x1, y1);
+  glVertex2f(x2, y2);
+  glEnd();
+
+  glFlush();
+  glPopMatrix();
+}
+
+//-------------------------------------------------------------
+// Procedure: drawHexagons()
+
+void MarineViewer::drawHexagons()
+{
+  int hsize = m_hexa.size();
+
+  for(int i=0; i<hsize; i++)
+    drawPoly(m_hexa[i]);
+}
+
+//-------------------------------------------------------------
+// Procedure: drawSegLists()
+
+void MarineViewer::drawSegLists()
+{
+  int vsize = m_segl.size();
+
+  for(int i=0; i<vsize; i++)
+    drawSegList(i );
+}
+
+//-------------------------------------------------------------
+// Procedure: drawSegList
+
+void MarineViewer::drawSegList(int ix)
+{
+  float edge_r = 0.5;
+  float edge_g = 0.5;
+  float edge_b = 0.5;
+  
+  float vert_r = 1.0;
+  float vert_g = 0.6;
+  float vert_b = 0.6;
+
+  XYSegList segl = m_segl[ix];
+  unsigned int vsize = segl.size();
+
+  unsigned int i, j;
+  float *points = new float[2*vsize];
+
+  unsigned int pindex = 0;
+  for(i=0; i<vsize; i++) {
+    points[pindex]   = segl.get_vx(i);
+    points[pindex+1] = segl.get_vy(i);
+
+    points[pindex]   *=  m_back_img.get_pix_per_mtr();
+    points[pindex+1] *=  m_back_img.get_pix_per_mtr();
+
+    pindex++;
+    pindex++;
+  }
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+
+  // Now draw the edges
+  if(vsize >= 2) {
+    glLineWidth(1.0);
+    glColor3f(edge_r, edge_g, edge_b);
+
+    glBegin(GL_LINE_STRIP);
+    for(i=0; i<vsize*2; i=i+2) {
+      glVertex2f(points[i], points[i+1]);
+    }
+    glEnd();
+  }
+
+  // If the seglist is just a single point, draw it big!
+  if(vsize==1) {
+    glPointSize(2.0 * m_zoom);
+    // Draw the vertices with color coding for the first and last
+    
+    //glColor3f(0.7,0.13,0.13);  // Firebrick red b2 22 22
+    glColor3f(0.13, 0.13, 0.7);  // Blueish
+    glBegin(GL_POINTS);
+    glVertex2f(points[0], points[1]);
+    glEnd();
+  }
+
+  //glPointSize(1.0 * m_zoom);
+  glPointSize(1.0);
+
+  // Draw the vertices in between the first and last ones
+  glColor3f(vert_r, vert_g, vert_b);
+  glBegin(GL_POINTS);
+  for(j=0; j<vsize; j++) {
+    glVertex2f(points[(j*2)], points[(j*2)+1]);
+  }
+  glEnd();
+  
+  delete [] points;
+  glFlush();
+  glPopMatrix();
+}
+
+//-------------------------------------------------------------
+// Procedure: drawGrids
+
+void MarineViewer::drawGrids()
+{
+  int vsize = m_grid.size();
+  for(int i=0; i<vsize; i++)
+    drawGrid(m_grid[i]);
+}
+
+//-------------------------------------------------------------
+// Procedure: drawGrid
+
+void MarineViewer::drawGrid(const XYGrid& grid)
+{
+  FColorMap cmap;
+
+  int gsize = grid.size();
+  if(gsize == 0)
+    return;
+
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+
+  glLineWidth(1.0);  // added dec1306
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+
+  int   i;
+  float px[4];
+  float py[4];
+
+  double min_eval = grid.getMinUtilPoss();
+  double max_eval = grid.getMaxUtilPoss();
+
+  for(i=0; i<gsize; i++) {
+    XYSquare element = grid.getElement(i);
+    double   eval = grid.getUtil(i);
+    double   pct  = (eval-min_eval)/(max_eval-min_eval);
+
+    //cout << "[" << pct << "]";
+    //pct = snapToStep(pct, 0.25);
+    
+    double   r    = cmap.getIRVal(pct);
+    double   g    = cmap.getIGVal(pct);
+    double   b    = cmap.getIBVal(pct);
+
+    px[0] = element.getVal(0,0);
+    py[0] = element.getVal(1,0);
+    px[1] = element.getVal(0,1);
+    py[1] = element.getVal(1,0);
+    px[2] = element.getVal(0,1);
+    py[2] = element.getVal(1,1);
+    px[3] = element.getVal(0,0);
+    py[3] = element.getVal(1,1);
+    
+    glEnable(GL_BLEND);
+    glColor4f(r,g,b,1);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
+    glBegin(GL_POLYGON);
+    for(int j=0; j<4; j++)
+      glVertex2f(px[j], py[j]);
+    glEnd();
+    glDisable(GL_BLEND);
+
+    glColor3f(0.9,0.9,0.9);
+    glBegin(GL_LINE_LOOP);
+    for(int k=0; k<4; k++)
+      glVertex2f(px[k], py[k]);
+    glEnd();
+  }
+
+  glFlush();
+  glPopMatrix();
+}
+
+//-------------------------------------------------------------
+// Procedure: drawCircles
+
+void MarineViewer::drawCircles()
+{
+  int vsize = m_circ.size();
+  for(int i=0; i<vsize; i++)
+    drawCircle(i);
+}
+
+//-------------------------------------------------------------
 // Procedure: drawDatum
 
 void MarineViewer::drawDatum()
 {
+  if(!m_draw_datum)
+    return;
+
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
   glOrtho(0, w(), 0, h(), -1 ,1);
@@ -406,12 +787,10 @@ void MarineViewer::drawDatum()
   glTranslatef(qx, qy, 0);
   glScalef(m_zoom, m_zoom, m_zoom);
 
-  vector<double> cvect = getColorMapping("datum_color", "0.0, 1.0, 0.3");
-
   // Draw the vertices in between the first and last ones
   glEnable(GL_POINT_SMOOTH);
   glPointSize(m_size_datum * m_zoom);
-  glColor3f(cvect[0], cvect[1], cvect[2]);
+  glColor3f(0, 1, 0.3);
   glBegin(GL_POINTS);
   glVertex2f(0, 0);
   glEnd();
@@ -421,105 +800,185 @@ void MarineViewer::drawDatum()
   glPopMatrix();
 }
 
+//-------------------------------------------------------------
+// Procedure: drawCircle
 
+void MarineViewer::drawCircle(int ix)
+{
+  XYCircle dcircle = m_circ[ix];
+  string dlabel = dcircle.getLabel();
+  double rad = dcircle.getRad();
+  if(rad <= 0)
+    return;
+  
+  glMatrixMode(GL_PROJECTION);
+  glLoadIdentity();
+  glOrtho(0, w(), 0, h(), -1 ,1);
+  
+  float tx = meters2img('x', 0);
+  float ty = meters2img('y', 0);
+  float qx = img2view('x', tx);
+  float qy = img2view('y', ty);
+
+  glMatrixMode(GL_MODELVIEW);
+  glPushMatrix();
+  glLoadIdentity();
+  
+  glLineWidth(1.0);  // added dec1306
+  glTranslatef(qx, qy, 0);
+  glScalef(m_zoom, m_zoom, m_zoom);
+
+  double px  = dcircle.getX();
+  double py  = dcircle.getY();
+  px *=  m_back_img.get_pix_per_mtr();
+  py *=  m_back_img.get_pix_per_mtr();
+
+  vector<double> cvect;
+  cvect.push_back(0);
+  cvect.push_back(1);
+  cvect.push_back(1);
+
+  map<string,vector<double> >::iterator p2;
+  p2 = m_color_map.find(dlabel);
+  if(p2 != m_color_map.end())
+    cvect = p2->second;
+
+  // Draw the vertices in between the first and last ones
+  glEnable(GL_POINT_SMOOTH);
+  glPointSize(1+rad);
+  glColor3f(cvect[0], cvect[1], cvect[2]);
+  glBegin(GL_POINTS);
+  glVertex2f(px, py);
+  glEnd();
+  glDisable(GL_POINT_SMOOTH);
+
+  glFlush();
+  glPopMatrix();
+}
 
 //-------------------------------------------------------------
 // Procedure: setCommonParam
 
 bool MarineViewer::setCommonParam(string param, string value)
 {
-  string p = tolower(stripBlankEnds(param));
-  string v = tolower(stripBlankEnds(value));
+  param = tolower(stripBlankEnds(param));
+  value = tolower(stripBlankEnds(value));
 
-  if(p=="datum_color")
-    return(setColorMapping("datum_color", v));
-  else if(p=="active_vcolor")
-    return(setColorMapping("active_vcolor", v));
-  else if(p=="inactive_vcolor")
-    return(setColorMapping("inactive_vcolor", v));
-  else if(p=="cross_view")
-    return(setBooleanOnString(m_cross_offon, v));
-  else if(p=="tiff_type") {
-    m_back_img_mod = true;
-    return(setBooleanOnString(m_back_img_b_on, v));
-  }
-  else if(p=="tiff_view") 
-    return(setBooleanOnString(m_tiff_offon, v));
-  else if(p=="hash_view")
-    return(setBooleanOnString(m_hash_offon, v));
-  else if(p=="trail_view")
-    return(setBooleanOnString(m_trails, v));
-  else if(p=="trail_connect")
-    return(setBooleanOnString(m_trail_connect, v));
-  else if(p=="display_vname")
-    return(setBooleanOnString(m_draw_vname, v));
-  else if(p=="vname_color") {
-    if(v == "toggle")
-      m_vname_color = (m_vname_color+1) % 3;
-  }
-  else if(p=="display_datum")
-    return(setBooleanOnString(m_draw_datum, v));
-
-  else if(p=="draw_marker_labels")
-    m_vmarkers.setParam("viewable_labels", "toggle");
-  else if(p=="marker_label_color")
-    m_vmarkers.setParam("label_color", v);
-  else if(p=="draw_markers")
-    m_vmarkers.setParam("viewable_all", v);
-  else if(p=="marker")
-    m_vmarkers.addVMarker(v, m_geodesy);
-
-  else if(p=="geodesy_init")
-    initGeodesy(v);
-
-  else if(p=="op_vertex")
-    m_op_area.addVertex(v, m_geodesy);
-  else if((p=="op_area_viewable_all")    ||
-	  (p=="op_area_viewable_labels") ||
-	  (p=="op_area_line_shade")      ||
-	  (p=="op_area_line_shade_mod")  ||
-	  (p=="op_area_label_shade")     ||
-	  (p=="op_area_label_shade_mod") ||
-	  (p=="op_area_config"))
-    m_op_area.setParam(p, v);
-  else if(p=="op_area_labels")
-    m_op_area.setParam("viewable_labels", v);
-  else if(p=="op_area_config")
-    m_op_area.setParam("config", v);
-  else if(p=="op_area_shade")
-    m_op_area.setParam("config", v);
-
-  else if(p=="marker_scale_all") {
-    if(v == "smaller")
-      m_vmarkers.setParam("mod_scale_all", 0.8);
-    else if(v == "bigger")
-      m_vmarkers.setParam("mod_scale_all", 1.2);
-    else if(v == "reset")
-      m_vmarkers.setParam("set_scale_all", 1.0);
+  if(param == "cross_view") {
+    if(value == "toggle")
+      m_cross_offon = !m_cross_offon;
+    else if(value == "on")
+      m_cross_offon = true;
+    else if(value == "off")
+      m_cross_offon = false;
     else
       return(false);
   }
-
-  else if(p=="zoom") {
-    if(v == "reset")
+  else if(param == "tiff_type") {
+    m_back_img_mod = true;
+    if(value == "toggle")
+      m_back_img_b_on = !m_back_img_b_on;
+    else if(value == "on")
+      m_back_img_b_on = true;
+    else if(value == "off")
+      m_back_img_b_on = false;
+    else
+      return(false);
+  }
+  else if(param == "tiff_view") {
+    if(value == "toggle")
+      m_tiff_offon = !m_tiff_offon;
+    else if(value == "on")
+      m_tiff_offon = true;
+    else if(value == "off")
+      m_tiff_offon = false;
+    else
+      return(false);
+  }
+  else if(param == "hash_view") {
+    if(value == "toggle")
+      m_hash_offon = !m_hash_offon;
+    else if(value == "on")
+      m_hash_offon = true;
+    else if(value == "off")
+      m_hash_offon = false;
+    else
+      return(false);
+  }
+  else if(param == "trail_view") {
+    if(value == "toggle")
+      m_trails = !m_trails;
+    else if(value == "on")
+      m_trails = true;
+    else if(value == "off")
+      m_trails = false;
+    else
+      return(false);
+  }
+  else if(param == "trail_connect") {
+    if(value == "toggle")
+      m_trail_connect = !m_trail_connect;
+    else if(value == "on")
+      m_trail_connect = true;
+    else if(value == "off")
+      m_trail_connect = false;
+    else
+      return(false);
+  }
+  else if(param == "display_vname") {
+    if(value == "toggle")
+      m_draw_vname = !m_draw_vname;
+    else if((value == "on") || (value == "true"))
+      m_draw_vname = true;
+    else if((value == "off") || (value == "false"))
+      m_draw_vname = false;
+    else
+      return(false);
+  }
+  else if(param == "vname_color") {
+    if(value == "toggle")
+      m_vname_color = (m_vname_color+1) % 3;
+  }
+  else if(param == "display_datum") {
+    if(value == "toggle")
+      m_draw_datum = !m_draw_datum;
+    else if((value == "on") || (value == "true"))
+      m_draw_datum = true;
+    else if((value == "off") || (value == "false"))
+      m_draw_datum = false;
+    else
+      return(false);
+  }
+  else if(param == "poly_view") {
+    if(value == "toggle")
+      m_poly_offon = !m_poly_offon;
+    else
+      return(false);
+  }
+  else if(param == "display_grids") {
+    if(value == "toggle")
+      m_grid_offon = !m_grid_offon;
+    else
+      return(false);
+  }
+  else if(param == "zoom") {
+    if(value == "reset")
       m_zoom = 1.0;
     else
       return(false);
   }
-  else if(p=="clear") {
-    if(v == "polygons")
-      m_geoshapes.clearPolygons();
-    else if(v == "seglists")
-      m_geoshapes.clearSegLists();
-    else if(v == "grids")
-      m_geoshapes.clearGrids();
-    else if(v == "circles")
-      m_geoshapes.clearCircles();
+  else if(param == "clear") {
+    if(value == "polygons")
+      m_poly.clear();
+    else if(value == "grids")
+      m_grid.clear();
+    else if(value == "circles")
+      m_circ.clear();
     else
       return(false);
   }
-  else if(p=="trail_color") {
-    if(v == "toggle")
+  else if(param == "trail_color") {
+    if(value == "toggle")
       m_trail_color = (m_trail_color+1) % 3;
     else
       return(false);
@@ -567,10 +1026,6 @@ bool MarineViewer::setCommonParam(string param, float v)
       m_shape_scale *= v;
   }
   else if(param == "datum_size") {
-    if((v >= 1) && (v <= 50))
-      m_size_datum = v;
-  }
-  else if(param == "datum_size_add") {
     m_size_datum += v;
     if(m_size_datum < 0)
       m_size_datum = 0;
@@ -601,6 +1056,158 @@ bool MarineViewer::setCommonParam(string param, float v)
 
 }
 
+
+//-------------------------------------------------------------
+// Procedure: addPoly
+
+void MarineViewer::addPoly(const XYPolygon& new_poly)
+{
+  string new_label = new_poly.get_label();
+  
+  // If given poly doesn't use a label it is automatically
+  // considered to be unique.
+  if(new_label == "") {
+    m_poly.push_back(new_poly);
+    return;
+  }
+  
+  bool prior_existed = false;
+
+  int vsize = m_poly.size();
+  for(int i=0; i<vsize; i++) {
+    if(m_poly[i].get_label() == new_label) {
+      m_poly[i] = new_poly;
+      prior_existed = true;
+    }
+  }
+  
+  if(!prior_existed)
+    m_poly.push_back(new_poly);
+  
+}
+
+//-------------------------------------------------------------
+// Procedure: addHexagon
+
+void MarineViewer::addHexagon(const XYHexagon& new_hexa)
+{
+  string new_label = new_hexa.get_label();
+  
+  // If given hexa doesn't use a label it is automatically
+  // considered to be unique.
+  if(new_label == "") {
+    m_hexa.push_back(new_hexa);
+    return;
+  }
+  
+  bool prior_existed = false;
+
+  int vsize = m_hexa.size();
+  for(int i=0; i<vsize; i++) {
+    if(m_hexa[i].get_label() == new_label) {
+      m_hexa[i] = new_hexa;
+      prior_existed = true;
+    }
+  }
+  
+  if(!prior_existed)
+    m_hexa.push_back(new_hexa);
+}
+
+//-------------------------------------------------------------
+// Procedure: addSegList
+
+void MarineViewer::addSegList(const XYSegList& new_segl)
+{
+  string new_label = new_segl.get_label();
+  
+  // If given seglist doesn't use a label it is automatically
+  // considered to be unique.
+  if(new_label == "") {
+    m_segl.push_back(new_segl);
+    return;
+  }
+  
+  bool prior_existed = false;
+
+  int vsize = m_segl.size();
+  for(int i=0; i<vsize; i++) {
+    if(m_segl[i].get_label() == new_label) {
+      m_segl[i] = new_segl;
+      prior_existed = true;
+    }
+  }
+  
+  if(!prior_existed)
+    m_segl.push_back(new_segl);
+}
+
+//-------------------------------------------------------------
+// Procedure: addCircle
+
+void MarineViewer::addCircle(const XYCircle& new_circ)
+{
+  string new_label = new_circ.getLabel();
+  
+  // If given circ doesn't use a label it is automatically
+  // considered to be unique.
+  if(new_label == "") {
+    m_circ.push_back(new_circ);
+    return;
+  }
+  
+  bool prior_existed = false;
+  
+  int vsize = m_circ.size();
+  for(int i=0; i<vsize; i++) {
+    if(m_circ[i].getLabel() == new_label) {
+      m_circ[i] = new_circ;
+      prior_existed = true;
+    }
+  }
+  
+  if(!prior_existed)
+    m_circ.push_back(new_circ);
+  
+}
+
+//-------------------------------------------------------------
+// Procedure: addGrid
+
+void MarineViewer::addGrid(const XYGrid& new_grid)
+{
+  string new_label = new_grid.getLabel();
+  bool   prior_existed = false;
+  int    vsize = m_grid.size();
+  for(int i=0; i<vsize; i++) {
+    if(m_grid[i].getLabel() == new_label) {
+      m_grid[i] = new_grid;
+      prior_existed = true;
+    }
+  }
+  if(!prior_existed)
+    m_grid.push_back(new_grid);
+}
+
+
+//-------------------------------------------------------------
+// Procedure: udpateGrid
+
+void MarineViewer::updateGrid(string delta)
+{
+  int g_size = m_grid.size();
+  bool ok;
+  for(int i=0; i<g_size; i++)
+      ok = m_grid[i].processDelta(delta);
+
+#if 0
+  if(ok)
+    cout << "Successfully processed GridDelta" << endl;
+  else
+    cout << "Failed process of received GridDelta" << endl;
+#endif
+}
+
 //-------------------------------------------------------------
 // Procedure: getHashDelta
 
@@ -619,67 +1226,26 @@ double MarineViewer::getHashDelta()
 }
 
 //-------------------------------------------------------------
-// Procedure: hasColorMapping
-
-bool MarineViewer::hasColorMapping(string attribute)
-{
-  map<string, vector<double> >::iterator p;
-  p = m_color_map.find(attribute);
-  if(p != m_color_map.end())
-    return(true);
-  else
-    return(false);
-}
-
-//-------------------------------------------------------------
-// Procedure: getColorMapping
-//      Note: If the attribute is not found, the returned color
-//            vector can be determined by the optional def_color
-//            argument. 
-
-vector<double> MarineViewer::getColorMapping(string attribute, 
-					     string def_color)
-{
-  map<string, vector<double> >::iterator p;
-  p = m_color_map.find(attribute);
-  if(p != m_color_map.end())
-    return(p->second);
-  else {
-    vector<double> color_vector = colorParse(def_color);
-    return(color_vector);
-  }
-}
-
-//-------------------------------------------------------------
-// Procedure: setColorMapping
-//            "label", "DarkKhaki"
-//            "label"  " hex, bd, b7, 6b"
-//            "label", "0.741, 0.718, 0.420"
-
-bool MarineViewer::setColorMapping(string attribute, string color_str)
-{
-  attribute = stripBlankEnds(attribute);
-  color_str = stripBlankEnds(color_str);
-  
-  vector<double> cvect = colorParse(color_str);
-  
-  m_color_map[attribute] = cvect;
-  if((cvect[0]==0) && (cvect[2]==0) && (cvect[2]==0) &&
-     (tolower(color_str) != "black"))
-    return(false);
-  return(true);    
-}
-
-//-------------------------------------------------------------
-// Procedure: setColorMapping
+// Procedure: colorMapping
 //            "label, DarkKhaki"
 //            "label, hex, bd, b7, 6b"
 //            "label, 0.741, 0.718, 0.420"
 
-bool MarineViewer::setColorMapping(string str)
+void MarineViewer::colorMapping(const string& str)
 {
-  string attribute = biteString(str, ',');
-  return(setColorMapping(attribute, str));
+  vector<string> pair = chompString(str, ',');
+  string vname = stripBlankEnds(pair[0]);
+  string color = stripBlankEnds(pair[1]);
+
+  vector<double> cvector = colorParse(color);
+  
+  map<string,vector<double> >::iterator p1;
+  p1 = m_color_map.find(vname);
+  if(p1 != m_color_map.end())
+    p1->second = cvector;
+  else {
+    m_color_map[vname] = cvector;
+  }
 }
 
 //-------------------------------------------------------------
@@ -790,26 +1356,15 @@ void MarineViewer::drawCommonVehicle(string vname, ObjectPose opose,
     drawGLPoly(g_gliderBody, g_gliderBodySize, 0,0,0, 1, g_gliderScale);
     glTranslatef(cx, cy, 0);
   }
-  else if(vehibody == "track")
-    {  
-      double cx = g_shipCtrX * g_shipScale;
-      double cy = g_shipCtrY * g_shipScale;
-      glTranslatef(-cx, -cy, 0);
-      drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
-      if(outer_line > 0)
-	drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
-      glTranslatef(cx, cy, 0);
-    }
-  else 
-    {  // vehibody == "ship" is the default
-      double cx = g_shipCtrX * g_shipScale;
-      double cy = g_shipCtrY * g_shipScale;
-      glTranslatef(-cx, -cy, 0);
-      drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
-      if(outer_line > 0)
-	drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
-      glTranslatef(cx, cy, 0);
-    }
+  else {  // vehibody == "ship" is the default
+    double cx = g_shipCtrX * g_shipScale;
+    double cy = g_shipCtrY * g_shipScale;
+    glTranslatef(-cx, -cy, 0);
+    drawGLPoly(g_shipBody, g_shipBodySize, red, grn, blu, 0, g_shipScale);
+    if(outer_line > 0)
+      drawGLPoly(g_shipBody, g_shipBodySize, 0.0, 0.0, 0.0, outer_line, g_shipScale);
+    glTranslatef(cx, cy, 0);
+  }
 
   if(m_draw_vname) {
     if(m_vname_color == 0)
@@ -825,7 +1380,7 @@ void MarineViewer::drawCommonVehicle(string vname, ObjectPose opose,
     offset = offset * (1/m_zoom);
 
     int slen = vname.length();
-    char *buff = new char[slen+1];
+    char *buff = new char(slen+1);
     glRasterPos3f(offset,offset,0);
     strncpy(buff, vname.c_str(), slen);
     buff[slen] = '\0';
@@ -836,14 +1391,12 @@ void MarineViewer::drawCommonVehicle(string vname, ObjectPose opose,
   glPopMatrix();
 }
 
-
 //-------------------------------------------------------------
 // Procedure: drawCommonMarker
 
-void MarineViewer::drawCommonMarker(double x, double y, double shape_scale, 
-				    const string& mtype, const string& label, 
-				    const vector<double>& label_color,
-				    const vector<vector<double> >& color_vectors)
+void MarineViewer::drawCommonMarker(double x, double y, 
+				    double shape_scale, 
+				    string mtype)
 {
   glMatrixMode(GL_PROJECTION);
   glLoadIdentity();
@@ -863,25 +1416,12 @@ void MarineViewer::drawCommonMarker(double x, double y, double shape_scale,
 
   glTranslatef(marker_vx, marker_vy, 0); // theses are in pixel units
 
-  double mz = sqrt(m_zoom);
-  glScalef(mz*shape_scale, mz*shape_scale, mz*shape_scale);
+  glScalef(m_zoom*shape_scale, m_zoom*shape_scale, m_zoom*shape_scale);
 
-  int vsize = color_vectors.size();
-  double r1, r2, g1, g2, b1, b2;
-  if(vsize >= 1) {
-    r1 = color_vectors[0][0]; 
-    g1 = color_vectors[0][1]; 
-    b1 = color_vectors[0][2];
-  }
-  if(vsize >= 2) {
-    r2 = color_vectors[1][0];
-    g2 = color_vectors[1][1];
-    b2 = color_vectors[1][2];
-  }
+  if(mtype == "gateway_a") {
+    double r1, r2, g1, g2, b1, b2;
+    r1=1.0, g1=1.0, b1=0.0, r2=0, g2=0, b2=0;
 
-  if(mtype == "gateway") {
-    if(vsize < 2) r2=0, g2=0, b2=0;
-    if(vsize < 1) r1=1, g1=1, b1=0;
     glTranslatef(-g_gatewayCtrX, -g_gatewayCtrY, 0);
     drawGLPoly(g_gatewayBody, g_gatewayBodySize, r1, g1, b1);    
     drawGLPoly(g_gatewayBody, g_gatewayBodySize, 0,0,0, 1);    
@@ -889,9 +1429,21 @@ void MarineViewer::drawCommonMarker(double x, double y, double shape_scale,
     glTranslatef(g_gatewayCtrX, g_gatewayCtrY, 0);
   }
 
-  else if(mtype == "efield") {
-    if(vsize < 2) r2=1, g2=0.843, b2=0;
-    if(vsize < 1) r1=0, g1=0, b1=0;
+  if(mtype == "gateway_b") {
+    double r1, r2, g1, g2, b1, b2;
+    r1=0, g1=0.54, b1=0.54, r2=0, g2=0, b2=0;
+
+    glTranslatef(-g_gatewayCtrX, -g_gatewayCtrY, 0);
+    drawGLPoly(g_gatewayBody, g_gatewayBodySize, r1, g1, b1);    
+    drawGLPoly(g_gatewayBody, g_gatewayBodySize, 0,0,0, 1);    
+    drawGLPoly(g_gatewayMidBody, g_gatewayMidBodySize, r2, g2, b2);
+    glTranslatef(g_gatewayCtrX, g_gatewayCtrY, 0);
+  }
+
+  if(mtype == "efield") {
+    double r1, r2, g1, g2, b1, b2;
+    r1=0, g1=0, b1=0, r2=1, g2=0.843, b2=0;
+
     glTranslatef(-g_efieldCtrX, -g_efieldCtrY, 0);
     drawGLPoly(g_efieldBody, g_efieldBodySize, r1, g1, b1);    
     drawGLPoly(g_efieldMidBody, g_efieldMidBodySize, r2, g2, b2);
@@ -899,854 +1451,7 @@ void MarineViewer::drawCommonMarker(double x, double y, double shape_scale,
     glTranslatef(g_efieldCtrX, g_efieldCtrY, 0);
   }
 
-  else if(mtype == "diamond") {
-    if(vsize < 1) r1=1, g1=0, b1=0;
-    glTranslatef(-g_diamondCtrX, -g_diamondCtrY, 0);
-    drawGLPoly(g_diamondBody, g_diamondBodySize, r1, g1, b1);    
-    drawGLPoly(g_diamondBody, g_diamondBodySize, 0,0,0, 1);    
-    glTranslatef(g_diamondCtrX, g_diamondCtrY, 0);
-  }
-
-  else if(mtype == "triangle") {
-    if(vsize < 1) r1=1, g1=1, b1=0;
-    glTranslatef(-g_triangleCtrX, -g_triangleCtrY, 0);
-    drawGLPoly(g_triangleBody, g_triangleBodySize, r1, g1, b1);    
-    drawGLPoly(g_triangleBody, g_triangleBodySize, 0,0,0, 1);    
-    glTranslatef(g_triangleCtrX, g_triangleCtrY, 0);
-  }
-
-  else if(mtype == "square") {
-    if(vsize < 1) r1=0, g1=1, b1=0;
-    glTranslatef(-g_squareCtrX, -g_squareCtrY, 0);
-    drawGLPoly(g_squareBody, g_squareBodySize, r1, g1, b1);    
-    drawGLPoly(g_squareBody, g_squareBodySize, 0,0,0, 1);    
-    glTranslatef(g_squareCtrX, g_squareCtrY, 0);
-  }
-
-  else if(mtype == "kelp") {
-    if(vsize < 1) r1=0, g1=0.54, b1=0.54;
-    glTranslatef(-g_kelpCtrX, -g_kelpCtrY, 0);
-    drawGLPoly(g_kelpBody, g_kelpBodySize, r1, g1, b1);    
-    drawGLPoly(g_kelpBody, g_kelpBodySize, 0,0,0, 1);    
-    glTranslatef(g_kelpCtrX, g_kelpCtrY, 0);
-  }
-
-  if(label != "") {
-      glColor3f(label_color[0], label_color[1], label_color[2]);
-    gl_font(1, 12);
-    if(m_zoom > 4)
-      gl_font(1, 14);
-    double offset = 5.0;
-    offset = offset * (1/m_zoom);
-
-    int slen = label.length();
-    char *buff = new char[slen+1];
-    //glRasterPos3f(offset, offset, 0);
-    glRasterPos3f(offset, offset, 0);
-    strncpy(buff, label.c_str(), slen);
-    buff[slen] = '\0';
-    gl_draw(buff, slen);
-    delete(buff);
-  }
-
   glPopMatrix();
 }
 
-
-//-------------------------------------------------------------
-// Procedure: drawMarkers
-
-void MarineViewer::drawMarkers()
-{
-  if(m_vmarkers.viewable() == false)
-    return;
-
-  double gscale = m_vmarkers.getMarkerGScale(); 
-
-  vector<vector<double> > color_vectors;
-  vector<double> label_color = m_vmarkers.getLabelColor();
-  
-  unsigned int vsize = m_vmarkers.size();
-  for(unsigned int i=0; i<vsize; i++) {
-    string mtype = m_vmarkers.getMarkerType(i);
-    string label;
-    if(m_vmarkers.viewable("labels"))
-      label = m_vmarkers.getMarkerLabel(i);
-    double xpos  = m_vmarkers.getMarkerXPos(i);
-    double ypos  = m_vmarkers.getMarkerYPos(i);
-    double scale = m_vmarkers.getMarkerScale(i) * gscale;
-    color_vectors = m_vmarkers.getMarkerColorVectors(i);
-    drawCommonMarker(xpos, ypos, scale, mtype, label, label_color, color_vectors);
-  }
-}
-
-//-------------------------------------------------------------
-// Procedure: drawOpArea
-
-void MarineViewer::drawOpArea()
-{
-  if(m_op_area.viewable() == false)
-    return;
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-
-  unsigned int index = 0;
-  unsigned int asize = m_op_area.size();
-
-  double line_shade  = m_op_area.getLineShade();
-  double label_shade = m_op_area.getLabelShade();
-
-  while(index < asize) {
-    string group  = m_op_area.getGroup(index);
-    double lwidth = m_op_area.getLWidth(index);
-    bool   dashed = m_op_area.getDashed(index);
-    bool   looped = m_op_area.getLooped(index);
-
-    vector<double> lcolor = m_op_area.getLColor(index);
-    vector<double> vcolor = m_op_area.getVColor(index);
-
-    vector<double> xpos, ypos;
-    vector<string> labels;
-
-    bool done = false;
-    while(!done) {
-      double x = m_op_area.getXPos(index);
-      double y = m_op_area.getYPos(index);
-      string label = m_op_area.getLabel(index);
-
-      index++;
-      if((index >= asize) || (group != m_op_area.getGroup(index)))
-	done = true;
-      xpos.push_back(x);
-      ypos.push_back(y);
-      labels.push_back(label);
-    }
-    
-    int vsize = xpos.size();
-    for(int i=0; i<vsize; i++) {
-      xpos[i] *= m_back_img.get_pix_per_mtr();
-      ypos[i] *= m_back_img.get_pix_per_mtr();
-    }
-
-    // Draw the edges 
-    glLineWidth(lwidth);
-    glColor3f(lcolor[0]*line_shade, lcolor[1]*line_shade, 
-	      lcolor[2]*line_shade);
-    
-    if(looped)
-      glBegin(GL_LINE_LOOP);
-    else
-      glBegin(GL_LINE_STRIP);
-    for(int j=0; j<vsize; j++) {
-      glVertex2f(xpos[j],  ypos[j]);
-    }
-    glEnd();
-
-    if(m_op_area.viewable("labels")) {
-      glColor3f(lcolor[0], lcolor[1], lcolor[2]);
-      gl_font(1, 12);
-      for(int k=0; k<vsize; k++) {
-	int slen = labels[k].length();
-	char *buff = new char[slen+1];
-	// +3 below is a draw offset
-	glRasterPos3f(xpos[k]+3, ypos[k]+3, 0);
-	strncpy(buff, labels[k].c_str(), slen);
-	buff[slen] = '\0';
-	gl_draw(buff, slen);
-	delete(buff);
-      }
-    }
-  }
-
-  glFlush();
-  glPopMatrix();
-}
-
-//-------------------------------------------------------------
-// Procedure: initGeodesy
-
-bool MarineViewer::initGeodesy(double lat, double lon)
-{
-  if((lat > 90) || (lat < -90))
-    return(false);
-  
-  if((lon > 180) || (lon < -180))
-    return(false);
-
-  return(m_geodesy.Initialise(lat, lon));
-}
-
-
-//-------------------------------------------------------------
-// Procedure: initGeodesy
-
-bool MarineViewer::initGeodesy(const string& str)
-{
-  vector<string> svector = parseString(str, ',');
-  if(svector.size() != 2)
-    return(false);
-  
-  string slat = stripBlankEnds(svector[0]);
-  string slon = stripBlankEnds(svector[1]);
-  
-  if((!isNumber(slat)) || (!isNumber(slon)))
-    return(false);
-  
-  double dlat = atof(slat.c_str());
-  double dlon = atof(slon.c_str());
-
-  return(m_geodesy.Initialise(dlat, dlon));
-}
-
-//-------------------------------------------------------------
-// Procedure: drawPolygons
-
-void MarineViewer::drawPolygons()
-{
-  // If the viewable parameter is set to false just return. In 
-  // querying the parameter the option "true" argument means return
-  // true if nothing is known about the parameter.
-  if(m_geoshapes.viewable("polygon_viewable_all", true) == false)
-    return;
-
-  int vsize = m_geoshapes.sizePolygons();
-  if(vsize == 0)
-    return;
-
-  vector<double> edge_c, fill_c, vert_c, labl_c;
-  edge_c = m_geoshapes.geocolor("polygon_edge_color", "aqua");
-  fill_c = m_geoshapes.geocolor("polygon_fill_color", "dark_green");
-  vert_c = m_geoshapes.geocolor("polygon_vertex_color", "red");
-  labl_c = m_geoshapes.geocolor("polygon_label_color", "white");
-
-  float line_width  = m_geoshapes.geosize("polygon_line_size");
-  float vertex_size = m_geoshapes.geosize("polygon_vertex_size");
-  
-  for(int i=0; i<vsize; i++) {
-    XYPolygon poly = m_geoshapes.getPolygon(i);
-    drawPolygon(poly, false, false, line_width, vertex_size, 
-		edge_c, fill_c, vert_c, labl_c);
-  }
-}
-
-//-------------------------------------------------------------
-// Procedure: drawPoly
-
-void MarineViewer::drawPolygon(const XYPolygon& poly, 
-			       bool filled, bool dashed,
-			       float line_width, float vertex_size,
-			       const vector<double>& edge_c, 
-			       const vector<double>& fill_c, 
-			       const vector<double>& vert_c, 
-			       const vector<double>& labl_c)
-{
-  unsigned int vsize = poly.size();
-  if(vsize < 1)
-    return;
-
-  unsigned int i, j;
-  float *points = new float[2*vsize];
-
-  int pindex = 0;
-  for(i=0; i<vsize; i++) {
-    points[pindex]   = poly.get_vx(i);
-    points[pindex+1] = poly.get_vy(i);
-
-    points[pindex]   *=  m_back_img.get_pix_per_mtr();
-    points[pindex+1] *=  m_back_img.get_pix_per_mtr();
-
-    pindex++;
-    pindex++;
-  }
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-  // Fill in the interior of polygon if it is a valid polygon
-  // with greater than two vertices. (Two vertex polygons are
-  // "valid" too, but we decide here not to draw the interior
-  if((vsize > 2) && poly.is_convex() && filled) {
-    glEnable(GL_BLEND);
-    glColor4f(fill_c[0], fill_c[1], fill_c[2], 0.1);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_POLYGON);
-    for(i=0; i<vsize*2; i=i+2) {
-      glVertex2f(points[i], points[i+1]);
-    }
-    glEnd();
-    glDisable(GL_BLEND);
-  }
-  
-  // Now draw the edges - if the polygon is invalid, don't draw
-  // the last edge.
-  if(vsize > 1) {
-    glLineWidth(line_width);
-    if(dashed) {
-      glEnable(GL_LINE_STIPPLE);
-      GLushort pattern = 0x5555;
-      GLint factor = 5;
-      glLineStipple(factor, pattern);
-    }
-
-    glColor3f(edge_c[0], edge_c[1], edge_c[2]);
-
-    if(poly.is_convex())
-      glBegin(GL_LINE_LOOP);
-    else
-      glBegin(GL_LINE_STRIP);
-    for(i=0; i<vsize*2; i=i+2) {
-      glVertex2f(points[i], points[i+1]);
-    }
-    glEnd();
-    if(dashed)
-      glDisable(GL_LINE_STIPPLE);
-  }
-
-  // If the polygon is just a single point, draw it big!
-  if(vsize==1) {
-    glPointSize(2.0 * m_zoom);
-    // Draw the vertices with color coding for the first and last
-    
-    //glColor3f(0.7,0.13,0.13);  // Firebrick red b2 22 22
-    glColor3f(0.13, 0.13, 0.7);  // Blueish
-    glBegin(GL_POINTS);
-    glVertex2f(points[0], points[1]);
-    glEnd();
-  }
-
-  glEnable(GL_POINT_SMOOTH);
-  glPointSize(vertex_size);
-
-  // Draw the vertices in between the first and last ones
-  glColor3f(vert_c[0], vert_c[1], vert_c[2]);
-  glBegin(GL_POINTS);
-  for(j=0; j<vsize; j++) {
-    glVertex2f(points[(j*2)], points[(j*2)+1]);
-  }
-  glEnd();
-  glDisable(GL_POINT_SMOOTH);
-
-
-
-  //-------------------------------- perhaps draw poly label
-  if(m_geoshapes.viewable("polygon_viewable_labels")) {
-    double cx = poly.get_avg_x() * m_back_img.get_pix_per_mtr();
-    double cy = poly.get_avg_y() * m_back_img.get_pix_per_mtr();
-    glTranslatef(cx, cy, 0);
-    
-    glColor3f(labl_c[0], labl_c[1], labl_c[2]);
-    gl_font(1, 12);
-
-    string plabel = poly.get_label();
-    int slen = plabel.length();
-    char *buff = new char[slen+1];
-    glRasterPos3f(0, 0, 0);
-    strncpy(buff, plabel.c_str(), slen);
-    buff[slen] = '\0';
-    gl_draw(buff, slen);
-    delete(buff);
-  }
-  //-------------------------------- perhaps draw poly label
-
-
-#if 0
-  //-------------------------------- perhaps draw poly vertex labels
-  if(m_geoshapes.viewable("polygon_viewable_vertex_labels") {
-    glTranslatef(0, 0, 0);
-    char *buff = new char[100];
-    for(j=0; j<vsize; j++) {
-      double cx = points[(j*2)];
-      double cy = points[(j*2)+1];
-      
-      glColor3f(edge_c[0], edge_c[1], edge_c[2]);
-      gl_font(1, 12);
-      
-      string vlabel = intToString(j);
-      int slen = vlabel.length();
-      glRasterPos3f(cx, cy, 0);
-      strncpy(buff, vlabel.c_str(), slen);
-      buff[slen] = '\0';
-      gl_draw(buff, slen);
-    }
-    delete(buff);
-  }
-  //-------------------------------- perhaps draw poly vertex_labels
-#endif
-
-  delete [] points;
-  glFlush();
-  glPopMatrix();
-}
-
-//-------------------------------------------------------------
-// Procedure: drawSegment
-//      Note: points are given in meter in local coordinates.
-
-void MarineViewer::drawSegment(float x1, float y1, float x2, float y2, 
-			       float red, float grn, float blu)
-{
-  float pix_per_mtr = m_back_img.get_pix_per_mtr();
-
-  x1 *= pix_per_mtr;
-  y1 *= pix_per_mtr;
-
-  x2 *= pix_per_mtr;
-  y2 *= pix_per_mtr;
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-  
-  glColor3f(red, grn, blu);
-  glBegin(GL_LINE_STRIP);
-  glVertex2f(x1, y1);
-  glVertex2f(x2, y2);
-  glEnd();
-
-  glFlush();
-  glPopMatrix();
-}
-
-//-------------------------------------------------------------
-// Procedure: drawSegLists()
-
-void MarineViewer::drawSegLists()
-{
-  // If the viewable parameter is set to false just return. In 
-  // querying the parameter the option "true" argument means return
-  // true if nothing is known about the parameter.
-  if(!m_geoshapes.viewable("seglist_viewable_all"))
-    return;
-
-  int vsize = m_geoshapes.sizeSegLists();
-  if(vsize == 0)
-    return;
- 
-  vector<double> edge_c, vert_c, labl_c;
-  edge_c = m_geoshapes.geocolor("seglist_edge_color", "yellow");
-  vert_c = m_geoshapes.geocolor("seglist_vertex_color", "white");
-  labl_c = m_geoshapes.geocolor("seglist_label_color", "white");
-  
-  float lwid = m_geoshapes.geosize("seglist_edge_width", 1);
-  float vert = m_geoshapes.geosize("seglist_vertex_size", 2);
-  
-  for(int i=0; i<vsize; i++) {
-    XYSegList segl = m_geoshapes.getSegList(i);
-    drawSegList(segl, lwid, vert, false, edge_c, vert_c, labl_c); 
-  }
-}
-
-//-------------------------------------------------------------
-// Procedure: drawSegList
-
-void MarineViewer::drawSegList(const XYSegList& segl, float lwid, 
-			       float vert, bool z_dash,
-			       const vector<double>& edge_c,
-			       const vector<double>& vert_c,
-			       const vector<double>& labl_c)
-{
-  unsigned int vsize = segl.size();
-
-  unsigned int i, j;
-  float *points = new float[2*vsize];
-
-  unsigned int pindex = 0;
-  for(i=0; i<vsize; i++) {
-    points[pindex]   = segl.get_vx(i);
-    points[pindex+1] = segl.get_vy(i);
-
-    points[pindex]   *=  m_back_img.get_pix_per_mtr();
-    points[pindex+1] *=  m_back_img.get_pix_per_mtr();
-
-    pindex++;
-    pindex++;
-  }
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-  // Now draw the edges
-  if(vsize >= 2) {
-    glLineWidth(lwid);
-    glColor3f(edge_c[0], edge_c[1], edge_c[2]);
-
-    glBegin(GL_LINE_STRIP);
-    for(i=0; i<vsize*2; i=i+2) {
-      glVertex2f(points[i], points[i+1]);
-    }
-    glEnd();
-  }
-
-  // If the seglist is just a single point, draw it big!
-  if(vsize==1) {
-    glPointSize(6 * m_zoom);
-    // Draw the vertices with color coding for the first and last
-    
-    glColor3f(vert_c[0], vert_c[1], vert_c[2]);
-    glBegin(GL_POINTS);
-    glVertex2f(points[0], points[1]);
-    glEnd();
-  }
-
-  glPointSize(vert * sqrt(m_zoom));
-
-  // Draw the vertices in between the first and last ones
-  glColor3f(vert_c[0], vert_c[1], vert_c[2]);
-  glBegin(GL_POINTS);
-  for(j=0; j<vsize; j++) {
-    glVertex2f(points[(j*2)], points[(j*2)+1]);
-  }
-  glEnd();
-  
-  delete [] points;
-  glFlush();
-  glPopMatrix();
-}
-
-//-------------------------------------------------------------
-// Procedure: drawHexagons()
-
-void MarineViewer::drawHexagons()
-{
-  int hsize = m_geoshapes.sizeHexagons();
-
-  vector<double> edge_c, fill_c, vert_c, labl_c;
-  edge_c = m_geoshapes.geocolor("polygon_edge_color", "yellow");
-  fill_c = m_geoshapes.geocolor("polygon_vertex_color", "white");
-  vert_c = m_geoshapes.geocolor("polygon_vertex_color", "white");
-  labl_c = m_geoshapes.geocolor("polygon_label_color", "white");
-
-  float line_width  = m_geoshapes.geosize("polygon_line_size");
-  float vertex_size = m_geoshapes.geosize("polygon_vertex_size");
-  
-  for(int i=0; i<hsize; i++)
-    drawPolygon(m_geoshapes.getHexagon(i), false, false, line_width, 
-	     vertex_size, edge_c, fill_c, vert_c, labl_c);
-}
-
-//-------------------------------------------------------------
-// Procedure: drawGrids
-
-void MarineViewer::drawGrids()
-{
-  if(m_geoshapes.viewable("grid_viewable_all", true) == false)
-    return;
-
-  int vsize = m_geoshapes.sizeGrids();
-  if(vsize == 0)
-    return;
-
-  for(int i=0; i<vsize; i++)
-    drawGrid(m_geoshapes.grid(i));
-}
-
-//-------------------------------------------------------------
-// Procedure: drawGrid
-
-void MarineViewer::drawGrid(const XYGrid& grid)
-{
-  FColorMap cmap;
-
-  int gsize = grid.size();
-  if(gsize == 0)
-    return;
-
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-
-  glLineWidth(1.0);  // added dec1306
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-  int   i;
-  float px[4];
-  float py[4];
-
-  double min_eval = grid.getMinUtilPoss();
-  double max_eval = grid.getMaxUtilPoss();
-
-  for(i=0; i<gsize; i++) {
-    XYSquare element = grid.getElement(i);
-    double   eval = grid.getUtil(i);
-    double   pct  = (eval-min_eval)/(max_eval-min_eval);
-
-    //cout << "[" << pct << "]";
-    //pct = snapToStep(pct, 0.25);
-    
-    double   r    = cmap.getIRVal(pct);
-    double   g    = cmap.getIGVal(pct);
-    double   b    = cmap.getIBVal(pct);
-
-    px[0] = element.getVal(0,0);
-    py[0] = element.getVal(1,0);
-    px[1] = element.getVal(0,1);
-    py[1] = element.getVal(1,0);
-    px[2] = element.getVal(0,1);
-    py[2] = element.getVal(1,1);
-    px[3] = element.getVal(0,0);
-    py[3] = element.getVal(1,1);
-    
-    glEnable(GL_BLEND);
-    glColor4f(r,g,b,1);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_POLYGON);
-    for(int j=0; j<4; j++)
-      glVertex2f(px[j], py[j]);
-    glEnd();
-    glDisable(GL_BLEND);
-
-    glColor3f(0.9,0.9,0.9);
-    glBegin(GL_LINE_LOOP);
-    for(int k=0; k<4; k++)
-      glVertex2f(px[k], py[k]);
-    glEnd();
-  }
-
-  glFlush();
-  glPopMatrix();
-}
-
-//-------------------------------------------------------------
-// Procedure: drawCircles
-
-void MarineViewer::drawCircles()
-{
-  // If the viewable parameter is set to false just return. In 
-  // querying the parameter the option "true" argument means return
-  // true if nothing is known about the parameter.
-  if(m_geoshapes.viewable("circle_viewable_all", true) == false)
-    return;
-
-  int vsize = m_geoshapes.sizeCircles();
-  if(vsize == 0)
-    return;
-
-  vector<double> edge_c = colorParse("blue");
-  vector<double> fill_c = colorParse("dark_blue");
-  vector<double> vert_c = colorParse("blue");
-  vector<double> labl_c = colorParse("white");
-  
-  for(int i=0; i<vsize; i++)
-    drawCircle(m_geoshapes.circ(i), 16, true, 
-	       edge_c, fill_c, vert_c, labl_c);
-}
-
-//-------------------------------------------------------------
-// Procedure: drawCircle
-
-void MarineViewer::drawCircle(const XYCircle& circle, int pts, bool filled,
-			      const vector<double>& edge_c,
-			      const vector<double>& fill_c,
-			      const vector<double>& vert_c,
-			      const vector<double>& labl_c)
-{
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-  
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-  
-  glLineWidth(1.0);  // added dec1306
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-  double px  = circle.getX();
-  double py  = circle.getY();
-  double rad = circle.getRad();
-
-  string poly_str = "radial:";
-  poly_str += doubleToString(px,2) + ",";
-  poly_str += doubleToString(py,2) + ",";
-  poly_str += doubleToString(rad,2) + ",";
-  poly_str += intToString(pts);
-  
-  XYPolygon poly = stringToPoly(poly_str);
-
-  // Now set points to the actual size vs. the requested size
-  unsigned int actual_pts = poly.size();
-
-  if(actual_pts == 0)
-    return;
-
-  unsigned int i;
-  float *points = new float[2 * actual_pts];
-  unsigned int pindex = 0;
-  for(i=0; i<actual_pts; i++) {
-    points[pindex]   = poly.get_vx(i);
-    points[pindex+1] = poly.get_vy(i);
-
-    points[pindex]   *=  m_back_img.get_pix_per_mtr();
-    points[pindex+1] *=  m_back_img.get_pix_per_mtr();
-    pindex += 2;
-  }
-
-  glColor3f(edge_c[0], edge_c[1], edge_c[2]);
-  glBegin(GL_LINE_LOOP);
-  for(i=0; i<actual_pts*2; i=i+2) {
-    glVertex2f(points[i], points[i+1]);
-  }
-  glEnd();
-  
-  // If filled option is on, draw the interior of the circle
-  if(filled) {
-    glEnable(GL_BLEND);
-    glColor4f(fill_c[0], fill_c[1], fill_c[2], 0.1);
-    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
-    glBegin(GL_POLYGON);
-    for(i=0; i<actual_pts*2; i=i+2) {
-      glVertex2f(points[i], points[i+1]);
-    }
-    glEnd();
-    glDisable(GL_BLEND);
-  }
-
-  delete [] points;
-  glFlush();
-  glPopMatrix();
-
-}
-
-//-------------------------------------------------------------
-// Procedure: drawPoints
-
-void MarineViewer::drawPoints()
-{
-  // If the viewable parameter is set to false just return. In 
-  // querying the parameter the option "true" argument means return
-  // true if nothing is known about the parameter.
-  if(m_geoshapes.viewable("point_viewable_all", true) == false)
-    return;
-
-  // If no points are present just return.
-  int vsize = m_geoshapes.sizePoints();
-
-  if(vsize == 0)
-    return;
-
-  // The second argument to geocolor is what is returned if no color
-  // mapping is present in the geoshapes data structure.
-  vector<double> vert_c, labl_c;
-  vert_c = m_geoshapes.geocolor("point_vertex_color", "red");
-  labl_c = m_geoshapes.geocolor("point_label_color", "aqua_marine");
-
-  // The second argument to geosize is what is returned if no size
-  // mapping is present in the geoshapes data structure.
-  double vertex_size = m_geoshapes.geosize("point_vertex_size", 3);
-  
-  for(int i=0; i<vsize; i++) {
-    XYPoint point = m_geoshapes.point(i);
-    if((point.get_size() > 0) && (point.active()))
-      drawPoint(point, vertex_size, vert_c, labl_c);
-  }
-}
-
-
-//-------------------------------------------------------------
-// Procedure: drawPoint
-
-void MarineViewer::drawPoint(const XYPoint& point, double vertex_size,
-			     const vector<double>& vert_c,
-			     const vector<double>& labl_c)
-{
-  glMatrixMode(GL_PROJECTION);
-  glLoadIdentity();
-  glOrtho(0, w(), 0, h(), -1 ,1);
-  
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
-
-  glMatrixMode(GL_MODELVIEW);
-  glPushMatrix();
-  glLoadIdentity();
-  
-  glLineWidth(1.0);  // added dec1306
-  glTranslatef(qx, qy, 0);
-  glScalef(m_zoom, m_zoom, m_zoom);
-
-  double px  = point.get_vx() * m_back_img.get_pix_per_mtr();
-  double py  = point.get_vy() * m_back_img.get_pix_per_mtr();
-
-  glPointSize(vertex_size * sqrt(m_zoom));
-  glColor3f(vert_c[0], vert_c[1], vert_c[2]); 
-  glEnable(GL_POINT_SMOOTH);
-  glBegin(GL_POINTS);
-  glVertex2f(px, py);
-  glEnd();
-  glDisable(GL_POINT_SMOOTH);
-
-  glFlush();
-  glPopMatrix();
-}
 

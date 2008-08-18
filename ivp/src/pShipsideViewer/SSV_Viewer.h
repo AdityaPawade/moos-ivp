@@ -35,7 +35,7 @@
 #include "ColoredPoint.h"
 #include "MarineViewer.h"
 #include "XYCircle.h"
-#include "MOOSLock.h"
+#include "MOOSGeodesy.h"
 
 class SSV_Viewer : public MarineViewer
 {
@@ -53,13 +53,18 @@ public:
   void  updateVehiclePosition(std::string, float x, float y, 
 			      float theta, float spd, float dep=0);  
   void  setVehicleBodyType(std::string, std::string);
-  void  setVehicleLength(std::string, double);
+  void  setOwnShipName(std::string);
   void  addStationCircle(const XYCircle&);
+  bool  initGeodesy(double, double);
 
   void  resetVehicles();
+  float getMetersX(int);
+  float getMetersY(int);
+  float getSpd(int);
+  float getDep(int);
+  float getCrs(int);
   bool  getLatLon(int, double&, double&);
-  float getVehicleInfo(int index, std::string info_type);
-  float getRelativeInfo(int index, std::string info_type);
+  float getAgeAIS(int);
 
   bool  hasVehiName(std::string);
   std::string getVehiName(int);
@@ -77,20 +82,28 @@ public:
   int   getDataIndex()           {return(m_global_ix);};
   void  setCurrent(std::string);
   void  cycleIndex();
-  
-  void  mutexLock()   {m_mutex.Lock();};
-  void  mutexUnLock() {m_mutex.UnLock();};
 
- protected:
+ public: // Geomarkers
+  void  addGatewayA(double, double, double, bool=true);
+  void  addGatewayB(double, double, double, bool=true);
+  void  addEField(double, double, double, bool=true);
+  void  addRangeSensor(double, double, double);
+  void  drawAGateways();
+  void  drawBGateways();
+  void  drawEFields();
+
+ private:
   void  drawVehicle(std::string, bool, std::string);
   void  drawPoints(CPList&);
   void  drawPoint(float, float, int color=0);
   void  handleLeftMouse(int, int);
   void  handleRightMouse(int, int);
   void  drawRadials();
-  void  drawBearingLine(int);
   void  drawStationCircles();
+  void  drawCirc(XYCircle, int, bool, double, double, double,
+		 double=0, double=0, double=0);
 
+  void  drawOpAreaGrid();
   void  drawGridBox(double, double, double, double, 
 		    double, double, double, double);
   void  drawGridPN();
@@ -104,14 +117,14 @@ public:
   std::map<std::string, CPList>       m_hist_map;
   // Mapping from Vehicle Name to Vehicle Body Type
   std::map<std::string, std::string>  m_vbody_map;
-  // Mapping from Vehicle Name to Vehicle Length in Meters
-  std::map<std::string, double>       m_vlength_map;
   // Mapping from Vehicle Name to Time of last AIS report
   std::map<std::string, double>       m_ais_map;
 
   std::string            m_ownship_name;
   std::vector<XYCircle>  m_station_circ;
   std::string            m_default_vehibody;
+
+  CMOOSGeodesy m_geodesy;
 
   // Member variables for holding/conveying mouse click info
   std::string m_left_click;
@@ -122,12 +135,28 @@ public:
   int    m_right_click_ix;
 
   bool   m_centric_view;
-  bool   m_draw_bearing_lines;
-  bool   m_draw_radial;
   int    m_radial_size;
   float  m_curr_time;
 
-  CMOOSLock   m_mutex;
+ private: // Geomarkers
+  std::string m_op_area;
+  
+
+  std::vector<double>    m_gateway_a_x;
+  std::vector<double>    m_gateway_a_y;
+  std::vector<double>    m_gateway_a_s;
+
+  std::vector<double>    m_gateway_b_x;
+  std::vector<double>    m_gateway_b_y;
+  std::vector<double>    m_gateway_b_s;
+
+  std::vector<double>    m_efield_x;
+  std::vector<double>    m_efield_y;
+  std::vector<double>    m_efield_s;
+
+  std::vector<double>    m_range_sensor_x;
+  std::vector<double>    m_range_sensor_y;
+  std::vector<double>    m_range_sensor_s;
 };
 
 #endif 

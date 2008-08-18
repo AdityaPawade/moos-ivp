@@ -10,12 +10,9 @@
 #include "MBUtils.h"
 #include "IO_GeomUtils.h"
 #include "XYPolygon.h"
-#include "XYSegList.h"
 #include "XYGrid.h"
 #include "XYCircle.h"
 #include "XYHexagon.h"
-#include "XYBuildUtils.h"
-#include "LMV_Utils.h"
 
 using namespace std;
 
@@ -43,13 +40,9 @@ int main(int argc, char *argv[])
   string tif_file = "Default.tif";  // default
   
   vector<XYPolygon> all_polys;
-  vector<XYSegList> all_segls;
   vector<XYGrid>    all_grids;
   vector<XYCircle>  all_circles;
   vector<XYHexagon> all_hexagons;
-  vector<string>    all_markers;
-  vector<string>    all_opvertices;
-  vector<string>    all_geodesy;
 
   for(i=1; i<argc; i++) {
     string argi  = tolower(argv[i]);
@@ -83,23 +76,6 @@ int main(int argc, char *argv[])
       vector<XYHexagon> hvector = readHexagonsFromFile(argv[i]);
       for(j=0; j<hvector.size(); j++)
 	all_hexagons.push_back(hvector[j]);
-      vector<string> mvector = readEntriesFromFile(argv[i], "marker");
-      for(j=0; j<mvector.size(); j++)
-	all_markers.push_back(mvector[j]);
-      vector<string> ovector = readEntriesFromFile(argv[i], "op_vertex");
-      for(j=0; j<ovector.size(); j++)
-	all_opvertices.push_back(ovector[j]);
-      vector<string> dvector = readEntriesFromFile(argv[i], "geodesy");
-      for(j=0; j<dvector.size(); j++)
-	all_geodesy.push_back(dvector[j]);
-#if 1
-      vector<string> svector = readEntriesFromFile(argv[i], "seglist");
-      for(j=0; j<svector.size(); j++) {
-	XYSegList new_segl = stringToSegList(svector[j]);
-	if(new_segl.size() != 0)
-	  all_segls.push_back(new_segl);
-      }
-#endif
     }
   }
  
@@ -113,30 +89,14 @@ int main(int argc, char *argv[])
   for(j=0; j<all_grids.size(); j++)
     gui->addGrid(all_grids[j]);
   
-  cout << "# of file seglists: " << all_segls.size() << endl;
-  for(j=0; j<all_segls.size(); j++)
-    gui->pviewer->addSegList(all_segls[j]);
-  
   cout << "# of file circles: " << all_circles.size() << endl;
   for(j=0; j<all_circles.size(); j++)
-    gui->pviewer->addCircle(all_circles[j]);
+    gui->addCircle(all_circles[j]);
   
   cout << "# of file hexagons: " << all_hexagons.size() << endl;
   for(j=0; j<all_hexagons.size(); j++)
     gui->addPoly(all_hexagons[j]);
   
-  cout << "# of file marker entries: " << all_markers.size() << endl;
-  for(j=0; j<all_markers.size(); j++)
-    bool ok = gui->pviewer->setCommonParam("marker", all_markers[j]);
-
-  cout << "# of file op entries: " << all_opvertices.size() << endl;
-  for(j=0; j<all_opvertices.size(); j++)
-    bool ok = gui->pviewer->setCommonParam("op_vertex", all_opvertices[j]);
-
-  cout << "# of file geodesy entries: " << all_geodesy.size() << endl;
-  for(j=0; j<all_geodesy.size(); j++)
-    bool ok = gui->pviewer->setCommonParam("geodesy_init", all_geodesy[j]);
-
   gui->updateXY();
 
   return Fl::run();

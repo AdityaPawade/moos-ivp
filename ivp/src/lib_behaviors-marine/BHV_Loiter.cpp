@@ -339,11 +339,8 @@ void BHV_Loiter::updateInfoOut()
   m_poly_changed = false;
   
   if(m_waypoint_engine.currPtChanged()) {
-    string ptmsg;
-    ptmsg =  "x=" + dstringCompact(doubleToString(m_ptx,2));
-    ptmsg += ",y=" + dstringCompact(doubleToString(m_pty,2));
-    ptmsg += ",label=loiter_" + m_us_name;
-    ptmsg += ",type=waypoint";
+    string ptmsg = doubleToString(m_ptx,2) + ",";
+    ptmsg += doubleToString(m_pty,2) + ",5," + m_us_name;
     postMessage("VIEW_POINT", ptmsg);
   }
   
@@ -359,13 +356,8 @@ void BHV_Loiter::updateInfoOutNull()
   bhv_tag = findReplace(bhv_tag, "BHV_", "");
   bhv_tag = findReplace(bhv_tag, "(d)", "");
 
-  string null_poly_spec = "label," + bhv_tag + ":0,0:0,0:0,0";
-  postMessage("VIEW_POLYGON", null_poly_spec);
-  
-  string null_point_spec;
-  null_point_spec =  "x=0,y=0,active=false,type=waypoint,";
-  null_point_spec += "label=loiter_" + m_us_name;
-  postMessage("VIEW_POINT", null_point_spec);
+  string null_spec = "label," + bhv_tag + ":0,0:0,0:0,0";
+  postMessage("VIEW_POLYGON", null_spec);
 }
 
 

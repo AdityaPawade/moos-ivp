@@ -26,13 +26,6 @@
 #include <string>
 #include "XYPolygon.h"
 #include "XYSegList.h"
-#include "XYPoint.h"
-
-//---------------------------------------------------------------
-// Create a point from a string specification. 
-// Example: label=bobby, type=destination, x=val, y=val, z=val
-XYPoint stringToPoint(std::string);
-
 
 //---------------------------------------------------------------
 // Create a polygon from a string specification. This function will
@@ -44,9 +37,6 @@ XYPolygon stringToPoly(std::string);
 //    degs=val, rads=val, pts=val, snap_value=val, label=val"
 XYPolygon stringPairsToEllipsePoly(std::string);
 
-
-
-
 // Create a rectangle from two given points
 // Example: "x1=val, y1=val, x2=val, y2=val, axis_pad=val, 
 //          perp_pad=val, snap_val=val, label=val"
@@ -56,9 +46,6 @@ XYPolygon stringPairsToPylonPoly(std::string);
 // Example: "radial:: x=val, y=val, radius=val, pts=val, snap=val, 
 //    label=val"
 XYPolygon stringPairsToRadialPoly(std::string);
-
-
-
 
 // Create a polygon that approximates a circle.
 // Examples: "radial: px, py, prad, ppts, snapval, label"

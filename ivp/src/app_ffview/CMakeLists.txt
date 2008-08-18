@@ -21,7 +21,9 @@ IF(BUILD_GUIS)
    ENDIF (${APPLE})
 	     
    TARGET_LINK_LIBRARIES(ffview
+     bhvutil
      ipfview
+     behaviors
      geometry
      mbutil
      ivpbuild
@@ -30,7 +32,8 @@ IF(BUILD_GUIS)
 	   
      # Standard libraries used by this project's FLTK apps...
      fltk 
-     fltk_gl) 
+     fltk_gl 
+     tiff)
 
      # http://developer.apple.com/qa/qa2007/qa1567.html
      IF (${APPLE})

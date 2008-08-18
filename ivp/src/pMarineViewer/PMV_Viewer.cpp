@@ -52,15 +52,18 @@ PMV_Viewer::PMV_Viewer(int x, int y, int w, int h, const char *l)
 
 void PMV_Viewer::draw()
 {
-  mutexLock();
   MarineViewer::draw();
 
-  drawPolygons();
-  drawGrids();
+  if(m_poly_offon)
+    drawPolys();
+
+  if(m_grid_offon)
+    drawGrids();
+
   drawSegLists();
   drawCircles();
   drawDatum();
-  MarineViewer::drawPoints();
+
 
   // Next draw the vehicle shapes. If the vehicle index is the 
   // one "active", draw it in a different color.
@@ -83,7 +86,6 @@ void PMV_Viewer::draw()
     drawPoints(p2->second);
 
   glFlush();
-  mutexUnLock();
 }
 
 //-------------------------------------------------------------
@@ -122,17 +124,25 @@ void PMV_Viewer::drawVehicle(string vname, bool active, string vehibody)
   else 
     return;
 
-  vector<double> cvect;
-  if(active)
-    cvect = getColorMapping("active_vcolor", "red");
-  else {
-    if(hasColorMapping(vname))
-      cvect = getColorMapping(vname, "1.0, 0.906, 0.243");
-    else
-      cvect = getColorMapping("inactive_vcolor", "1.0, 0.906, 0.243");
+  // The default "non-active vehicle" color
+  double red = 1.0;
+  double grn = 0.906;
+  double blu = 0.243;
+
+  map<string,vector<double> >::iterator p2;
+  p2 = m_color_map.find(vname);
+  if(p2 != m_color_map.end()) {
+    red = p2->second[0];
+    grn = p2->second[1];
+    blu = p2->second[2];
+  }
+  
+  // Set the color for the "active" vehicle.
+  if(active) {
+    red=1.0; grn=0; blu=0;
   }
 
-  drawCommonVehicle(vname, opose, cvect[0], cvect[1], cvect[1], vehibody, 1);
+  drawCommonVehicle(vname, opose, red, grn, blu, vehibody, 1);
 }
 
 //-------------------------------------------------------------
@@ -190,6 +200,98 @@ void PMV_Viewer::updateVehiclePosition(string vname, float x,
 }
 
 // ----------------------------------------------------------
+// Procedure: getMetersX
+//   Purpose: For a given x position, return its position, in 
+//            terms of delta meters from the zero position.
+//            Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. -1 indicates it the x position 
+//            of the cross-hairs
+
+float PMV_Viewer::getMetersX(int index)
+{
+  if(m_cross_offon) {
+    int iwidth = m_back_img.get_img_width();
+    float x_pos = ((float)(iwidth) / 2.0) - (float)(m_vshift_x);
+    float x_pct = m_back_img.pixToPctX(x_pos);
+    float x_pct_cent = m_back_img.get_img_centx();
+    float x_pct_mtrs = m_back_img.get_img_meters();
+    float meters = (x_pct - x_pct_cent) / (x_pct_mtrs / 100.0);
+    return(meters);
+  }
+  
+  ObjectPose opose = getObjectPoseByIndex(index);
+  return(opose.getX());
+}
+
+// ----------------------------------------------------------
+// Procedure: getMetersY
+//   Purpose: For a given y position, return its position, in 
+//            terms of delta meters from the zero position.
+//            Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. -1 indicates it the y position 
+//            of the cross-hairs
+
+float PMV_Viewer::getMetersY(int index)
+{
+  if(m_cross_offon) {
+    int iheight = m_back_img.get_img_height();
+    float y_pos = ((float)(iheight) / 2.0) - (float)(m_vshift_y);
+    float y_pct = m_back_img.pixToPctY(y_pos);
+    float y_pct_cent = m_back_img.get_img_centy();
+    float y_pct_mtrs = m_back_img.get_img_meters();
+    float meters = (y_pct - y_pct_cent) / (y_pct_mtrs / 100.0);
+    return(meters);
+  }
+
+  ObjectPose opose = getObjectPoseByIndex(index);
+  return(opose.getY());
+}
+
+// ----------------------------------------------------------
+// Procedure: getSpd
+//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. -1 indicates it the x position 
+//            of the cross-hairs
+
+float PMV_Viewer::getSpd(int index)
+{
+  if(m_cross_offon)
+    return(0.0);
+    
+  ObjectPose opose = getObjectPoseByIndex(index);
+  return(opose.getSpeed());
+}
+
+// ----------------------------------------------------------
+// Procedure: getDep
+//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. 
+
+float PMV_Viewer::getDep(int index)
+{
+  if(m_cross_offon)
+    return(0.0);
+  
+  ObjectPose opose = getObjectPoseByIndex(index);
+  return(opose.getDepth());
+}
+
+// ----------------------------------------------------------
+// Procedure: getCrs
+//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. -1 indicates it the x position 
+//            of the cross-hairs
+
+float PMV_Viewer::getCrs(int index)
+{
+  if(m_cross_offon)
+    return(0.0);
+
+  ObjectPose opose = getObjectPoseByIndex(index);
+  return(opose.getTheta());
+}
+
+// ----------------------------------------------------------
 // Procedure: getVehiName
 //   Purpose: Index indicates which of the MAX_VEHICLES vehicles
 //            is being queried. Anything outside this range 
@@ -232,76 +334,6 @@ string PMV_Viewer::getVehiType(int index)
   }
   return("???");
 }
-
-
-// ----------------------------------------------------------
-// Procedure: getVehicleInfo
-//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
-//            is being queried. 
-
-float PMV_Viewer::getVehicleInfo(int index, string info_type)
-{
-  if(info_type == "age_ais") {
-    if(m_cross_offon)
-      return(-1);
-
-    string vname = getVehiName(index);
-    map<string,double>::iterator p1;
-    p1 = m_ais_map.find(vname);
-    if(p1 != m_ais_map.end())
-      return(m_curr_time - p1->second);
-    return(-1);
-  }
-  else if((info_type == "heading") || (info_type == "course")) {
-    if(m_cross_offon)
-      return(0.0);
-    
-    ObjectPose opose = getObjectPoseByIndex(index);
-    return(opose.getTheta());
-  }
-  else if((info_type == "xpos") || (info_type == "meters_x")) {
-    if(m_cross_offon) {
-      int iwidth = m_back_img.get_img_width();
-      float x_pos = ((float)(iwidth) / 2.0) - (float)(m_vshift_x);
-      float x_pct = m_back_img.pixToPctX(x_pos);
-      float x_pct_cent = m_back_img.get_img_centx();
-      float x_pct_mtrs = m_back_img.get_img_meters();
-      float meters = (x_pct - x_pct_cent) / (x_pct_mtrs / 100.0);
-      return(meters);
-    }
-    ObjectPose opose = getObjectPoseByIndex(index);
-    return(opose.getX());
-  }
-  else if((info_type == "ypos") || (info_type == "meters_y")) {
-    if(m_cross_offon) {
-      int iheight = m_back_img.get_img_height();
-      float y_pos = ((float)(iheight) / 2.0) - (float)(m_vshift_y);
-      float y_pct = m_back_img.pixToPctY(y_pos);
-      float y_pct_cent = m_back_img.get_img_centy();
-      float y_pct_mtrs = m_back_img.get_img_meters();
-      float meters = (y_pct - y_pct_cent) / (y_pct_mtrs / 100.0);
-      return(meters);
-    }
-    ObjectPose opose = getObjectPoseByIndex(index);
-    return(opose.getY());
-  }
-  else if(info_type == "speed") {
-    if(m_cross_offon)
-      return(0.0);
-    
-    ObjectPose opose = getObjectPoseByIndex(index);
-    return(opose.getSpeed());
-  }
-  else if(info_type == "depth") {
-    if(m_cross_offon)
-      return(0.0);
-    
-    ObjectPose opose = getObjectPoseByIndex(index);
-    return(opose.getDepth());
-  }
-  return(0);
-}
-
 
 //-------------------------------------------------------------
 // Procedure: cycleIndex
@@ -459,4 +491,24 @@ bool PMV_Viewer::getLatLon(int index, double& rlat, double& rlon)
   if(m_cross_offon)
     return(0.0);
 }
+
+// ----------------------------------------------------------
+// Procedure: getAgeAIS
+//   Purpose: Index indicates which of the MAX_VEHICLES vehicles
+//            is being queried. 
+
+float PMV_Viewer::getAgeAIS(int index)
+{
+  if(m_cross_offon)
+    return(-1);
+  
+  string vname = getVehiName(index);
+  map<string,double>::iterator p1;
+  p1 = m_ais_map.find(vname);
+  if(p1 != m_ais_map.end())
+    return(m_curr_time - p1->second);
+  else 
+    return(-1);
+}
+
 

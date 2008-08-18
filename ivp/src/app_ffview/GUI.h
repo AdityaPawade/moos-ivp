@@ -15,7 +15,6 @@
 #include <FL/Fl.H>
 #include <FL/Fl_Window.H>
 #include <FL/Fl_Menu_Bar.H>
-#include <FL/Fl_Input.H>
 #include "MY_Output.h"
 
 #include "Viewer.h"
@@ -41,16 +40,10 @@ public:
   MY_Output   *p_samp_count;
   MY_Output   *p_samp_high;
   MY_Output   *p_samp_low;
+
   MY_Output   *p_piece_count;
   MY_Output   *p_unif_aug_size;
   MY_Output   *p_create_time;
-
-  MY_Output   *p_uniform_str;
-  MY_Output   *p_refine_reg_str;
-  MY_Output   *p_refine_pce_str;
-  MY_Output   *p_reflector_errors;
-  MY_Output   *p_auto_peak;
-
 
 private:
   inline void cb_Zoom_i(int);
@@ -83,20 +76,14 @@ private:
   inline void cb_ToggleIPF_i();
   static void cb_ToggleIPF(Fl_Widget*);
 
-  inline void cb_ToggleDirectedRefine_i();
-  static void cb_ToggleDirectedRefine(Fl_Widget*);
+  inline void cb_ToggleUniformAug_i();
+  static void cb_ToggleUniformAug(Fl_Widget*);
 
   inline void cb_ToggleSmartAug_i();
   static void cb_ToggleSmartAug(Fl_Widget*);
 
-  inline void cb_ToggleAutoPeak_i();
-  static void cb_ToggleAutoPeak(Fl_Widget*);
-
   inline void cb_SmartAugAmt_i(int);
   static void cb_SmartAugAmt(Fl_Widget*, int);
-
-  inline void cb_SmartAugPct_i(int);
-  static void cb_SmartAugPct(Fl_Widget*, int);
 
   inline void cb_ToggleFrame_i();
   static void cb_ToggleFrame(Fl_Widget*);
@@ -131,16 +118,6 @@ private:
   inline void cb_PrintParams_i();
   static void cb_PrintParams(Fl_Widget*);
 
-#if 0
-  inline void cb_set_uniform_str_i();
-  static void cb_set_uniform_str(Fl_Input*, void*);
-
-  inline void cb_set_refine_reg_i();
-  static void cb_set_refine_reg(Fl_Input*, void*);
-
-  inline void cb_set_refine_pce_i();
-  static void cb_set_refine_pce(Fl_Input*, void*);
-#endif
   static void cb_Quit();
 };
 #endif

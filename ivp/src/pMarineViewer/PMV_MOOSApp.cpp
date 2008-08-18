@@ -64,14 +64,17 @@ bool PMV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
       MOOSTrace("\n");
   }
 
-  m_gui->mviewer->mutexLock();
-
   //for(p = NewMail.rbegin();p!=NewMail.rend();p++) {
   for(p = NewMail.begin();p!=NewMail.end();p++) {
     CMOOSMsg &Msg = *p;
 
     string key = Msg.m_sKey;
 
+//    if(key == "AIS_REPORT") {
+//      MOOSTrace("\nProcessing AIS_REPORT Message\n");
+//      receiveAIS_REPORT(Msg);
+//      gui_needs_redraw = true;
+//    }
     if(key == "PK_SOL") {
       MOOSTrace("\nProcessing PK_SOL Message\n");
       receivePK_SOL(Msg);
@@ -113,14 +116,13 @@ bool PMV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
       MOOSTrace("Unknown msg [%s]\n",key.c_str());
     }
   }
+
   if(gui_needs_redraw && m_gui) {
     m_gui->updateXY();
     m_gui->mviewer->redraw();
   }
   if(gui_clear_trails && m_gui)
     m_gui->mviewer->clearTrails();
-
-  m_gui->mviewer->mutexUnLock();
 
   return(true);
 }
@@ -226,30 +228,45 @@ bool PMV_MOOSApp::OnStartUp()
   }
 
 
-  STRING_LIST::reverse_iterator p;
-  for(p = sParams.rbegin();p!=sParams.rend();p++) {
+  STRING_LIST::iterator p;
+  for(p = sParams.begin();p!=sParams.end();p++) {
     string sLine    = *p;
     string sVarName = MOOSChomp(sLine, "=");
     sVarName = toupper(sVarName);
     sLine    = stripBlankEnds(sLine);
     double dval = atof(sLine.c_str());
     
-    //if(MOOSStrCmp(sVarName, "TIF_FILE"))
-    //  tif_file = sLine;
+    if(MOOSStrCmp(sVarName, "TIF_FILE"))
+      tif_file = sLine;
+    if(MOOSStrCmp(sVarName, "HASH_DELTA"))
+      m_gui->mviewer->setParam("hash_delta", dval);
+    if(MOOSStrCmp(sVarName, "HASH_SHADE"))
+      m_gui->mviewer->setParam("hash_shade", dval);
+    if(MOOSStrCmp(sVarName, "BACK_SHADE"))
+      m_gui->mviewer->setParam("back_shade", dval);
+    if(MOOSStrCmp(sVarName, "TRAIL_SIZE"))
+      m_gui->mviewer->setParam("trail_size", dval);
+    if(MOOSStrCmp(sVarName, "TRAIL_GAP"))
+      m_gui->mviewer->setParam("trail_gap",  dval);
+    if(MOOSStrCmp(sVarName, "ZOOM"))
+      m_gui->mviewer->setParam("zoom",       dval);
+    if(MOOSStrCmp(sVarName, "HASH_VIEW"))
+      m_gui->mviewer->setParam("hash_view",  sLine);
+    if(MOOSStrCmp(sVarName, "TIFF_VIEW"))
+      m_gui->mviewer->setParam("tiff_view",  sLine);
+    if(MOOSStrCmp(sVarName, "TRAIL_VIEW"))
+      m_gui->mviewer->setParam("trail_view", sLine);
+    if(MOOSStrCmp(sVarName, "DISPLAY_VNAME"))
+      m_gui->mviewer->setParam("display_vname", sLine);
 
-    if(MOOSStrCmp(sVarName, "VEHICOLOR"))
-      m_gui->mviewer->setColorMapping(sLine);
-    else if(MOOSStrCmp(sVarName, "VERBOSE")) {
+    if(MOOSStrCmp(sVarName, "VERBOSE")) {
       if(tolower(sLine) == "true")
 	m_verbose = true;
       if(tolower(sLine) == "false")
 	m_verbose = false;
     }
-    else { 
-      bool handled = m_gui->mviewer->setParam(sVarName, sLine);
-      if(!handled)
-	m_gui->mviewer->setParam(sVarName, atof(sLine.c_str()));
-    }
+    if(MOOSStrCmp(sVarName, "VEHICOLOR"))
+      m_gui->mviewer->colorMapping(sLine);
   }
 
   //if((tif_file != "") && (m_gui))
@@ -439,24 +456,26 @@ bool PMV_MOOSApp::receiveSegList(CMOOSMsg &Msg)
 
 bool PMV_MOOSApp::receivePoint(CMOOSMsg &Msg)
 {
-  XYPoint new_point = stringToPoint(Msg.m_sVal);
+  XYCircle new_circ;
+  
+  bool ok = new_circ.initialize(Msg.m_sVal);
   
   string label = "ERR";
-  if(new_point.valid())
-    label = new_point.get_label();
+  if(ok)
+    label = new_circ.getLabel();
   
   if(m_verbose)
     MOOSTrace("   Point(%s)\n", label.c_str());
   else
     MOOSTrace(".");
-  
-  if(new_point.valid()) {
-    m_gui->addPoint(new_point);
+
+  if(ok) {
+    m_gui->addCircle(new_circ);
     return(true);
   }
   else {
     MOOSTrace("Parse Error in receivePoint. \n");
-    MOOSTrace(" String: %s \n", Msg.m_sVal.c_str());
+    MOOSTrace("Msg: %s\n", Msg.m_sVal.c_str());
     return(false);
   }
 }

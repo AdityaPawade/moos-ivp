@@ -24,9 +24,8 @@
 #define CIRCLE_XY_HEADER
 
 #include <string>
-#include "XYObject.h"
 
-class XYCircle : public XYObject {
+class XYCircle {
 public:
   XYCircle();
   XYCircle(double, double, double);
@@ -75,6 +74,7 @@ protected:
   double       m_x;
   double       m_y;
   double       m_rad;
+  std::string  m_label;
 };
 #endif
 

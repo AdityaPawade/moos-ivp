@@ -21,7 +21,6 @@ IF(BUILD_GUIS)
 	     
 	TARGET_LINK_LIBRARIES(logview
 	  marineview
-	  MOOSUtility
 	  navplot
 	  geometry
 	  mbutil

@@ -1,8 +1,8 @@
 /*****************************************************************/
 /*    NAME: Michael Benjamin and John Leonard                    */
 /*    ORGN: NAVSEA Newport RI and MIT Cambridge MA               */
-/*    FILE: RT_Smart.h                                           */
-/*    DATE: Jan 20th, 2006                                       */
+/*    FILE: RT_Focus.h                                           */
+/*    DATE: Mar 20th, 2007                                       */
 /*    NOTE: "RT_" stands for "Reflector Tool"                    */
 /*                                                               */
 /* This program is free software; you can redistribute it and/or */
@@ -25,35 +25,29 @@
 #pragma warning(disable : 4786)
 #pragma warning(disable : 4503)
 #endif
-#ifndef RT_SMART_REFINE_HEADER
-#define RT_SMART_REFINE_HEADER
+#ifndef RT_FOCUS_HEADER
+#define RT_FOCUS_HEADER
 
+#include <vector>
 #include "PDMap.h"
 #include "PQueue.h"
 
 class Regressor;
-class RT_Smart {
+
+class RT_Focus {
 public:
-  RT_Smart(Regressor*);
-  virtual ~RT_Smart() {};
+  RT_Focus(Regressor*);
+  virtual ~RT_Focus() {};
 
 public: 
-  PDMap* create(PDMap*, PQueue&, int more_pcs, double thresh=0);
+  PDMap* create(PDMap*, const IvPBox&, const IvPBox&, PQueue&);
+
+ protected:
+  void   updatePQueue(PQueue&, const std::vector<int>& idx_map);
 
 protected:
   Regressor* m_regressor;
 };
 
 #endif
-
-
-
-
-
-
-
-
-
-
-
 

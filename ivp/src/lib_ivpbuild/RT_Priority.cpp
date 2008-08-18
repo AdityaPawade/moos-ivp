@@ -1,7 +1,7 @@
 /*****************************************************************/
 /*    NAME: Michael Benjamin and John Leonard                    */
 /*    ORGN: NAVSEA Newport RI and MIT Cambridge MA               */
-/*    FILE: RT_Smart.cpp                                         */
+/*    FILE: RT_Priority.cpp                                      */
 /*    DATE: Jan 20th, 2006                                       */
 /*    NOTE: "RT_" stands for "Reflector Tool"                    */
 /*                                                               */
@@ -21,7 +21,7 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
-#include "RT_Smart.h"
+#include "RT_Priority.h"
 #include "BuildUtils.h"
 #include "Regressor.h"
 
@@ -30,7 +30,7 @@ using namespace std;
 //-------------------------------------------------------------
 // Procedure: Constructor
 
-RT_Smart::RT_Smart(Regressor *g_reg) 
+RT_Priority::RT_Priority(Regressor *g_reg) 
 {
   m_regressor = g_reg;
 }
@@ -43,8 +43,8 @@ RT_Smart::RT_Smart(Regressor *g_reg)
 //            regression fit during the phase when uniform pieces
 //            were constructed.
 
-PDMap* RT_Smart::create(PDMap *pdmap, PQueue& pqueue, 
-			int amt, double thresh)
+PDMap* RT_Priority::create(PDMap *pdmap, PQueue& pqueue, 
+			   int amt, double thresh)
 {
   if(!pdmap || pqueue.null() || (amt < 1))
     return(pdmap);

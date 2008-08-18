@@ -38,11 +38,12 @@ public:
   void  createNew(); 
   void  shiftHorzPoly(double);
   void  shiftVertPoly(double);
-  void  rotatePoly(int);
-  void  growPoly(int);
+  void  rotatePoly(unsigned int);
+  void  growPoly(unsigned int);
   void  reversePoly();
   void  duplicateActive();
   void  clearActivePoly();
+  void  clearPoly()               {m_poly.clear(); m_drop_mode=0;};
   int   getMode()                 {return(m_drop_mode);};
   float getSnap()                 {return(m_snap_val);};
   void  reApplySnapToCurrent();   

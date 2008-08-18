@@ -21,8 +21,8 @@ IF(BUILD_GUIS)
    TARGET_LINK_LIBRARIES(pMarineViewer         
       MOOS
       MOOSGen
-      marineview
       MOOSUtility
+      marineview
       mbutil
       genutil
       geometry

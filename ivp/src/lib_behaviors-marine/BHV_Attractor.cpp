@@ -44,8 +44,8 @@ BHV_Attractor::BHV_Attractor(IvPDomain gdomain) :
   IvPBehavior(gdomain)
 {
   this->setParam("descriptor", "(d)bhv_cutrange");
-  this->setParam("build_info", "uniform_box =discrete@course:2,speed:3");
-  this->setParam("build_info", "uniform_grid=discrete@course:8,speed:6");
+  this->setParam("build_info", "uniform_box=course:2,speed:3");
+  this->setParam("build_info", "uniform_grid=course:8,speed:6");
   
   m_domain = subDomain(m_domain, "course,speed");
 
@@ -246,12 +246,9 @@ IvPFunction *BHV_Attractor::onRunState()
 	return(0);
       }
       
-      OF_Reflector reflector(&aof);
+      OF_Reflector reflector(&aof, 1);
       reflector.create(m_build_info);
-      if(reflector.hasErrors())
-	postWMessage(reflector.getErrors());
-      else
-	ipf = reflector.extractOF();
+      ipf = reflector.extractOF();
     }
   else
     {
@@ -276,12 +273,11 @@ IvPFunction *BHV_Attractor::onRunState()
       OF_Coupler coupler;
       ipf = coupler.couple(hdg_ipf, spd_ipf);
     }
+  
 
-  // Check for properly created IvPFunction before operating on it.
-  if(ipf) {
-    ipf->getPDMap()->normalize(0.0, 100.0);
-    ipf->setPWT(relevance * m_priority_wt);
-  }
+  ipf->getPDMap()->normalize(0.0, 100.0);
+
+  ipf->setPWT(relevance * m_priority_wt);
 
   return(ipf);
 }

@@ -34,7 +34,6 @@
 #include <iterator>
 #include <assert.h>
 #include <math.h>
-#include <algorithm>
 #include <MOOSGenLib/MOOSGenLibGlobalHelper.h>
 
 //! a buffer to store data and get interp values by index with time
@@ -58,7 +57,7 @@ public:
         typename BASE_TYPE::const_iterator hi;
         typename BASE_TYPE::const_iterator low;
         
-        hi = BASE_TYPE::lower_bound(interp_time);
+        hi = lower_bound(interp_time);
         low = hi; std::advance(low,-1);
         if (hi != this->begin()  && hi != this->end())
         {

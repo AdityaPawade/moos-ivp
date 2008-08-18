@@ -87,7 +87,7 @@ SSV_GUI::SSV_GUI(int g_w, int g_h, const char *g_l)
   v_crs->textsize(info_size); 
   v_crs->labelsize(info_size);
 
-  v_dep = new MY_Output(500, h()-60, 55, 20, "Depth(m):"); 
+  v_dep = new MY_Output(500, h()-60, 55, 20, "Depth:"); 
   v_dep->textsize(info_size); 
   v_dep->labelsize(info_size);
 
@@ -110,15 +110,6 @@ SSV_GUI::SSV_GUI(int g_w, int g_h, const char *g_l)
   d_radial = new MY_Output(750, h()-60, 55, 20, "Radial:"); 
   d_radial->textsize(info_size); 
   d_radial->labelsize(info_size);
-
-  m_rbearing = new MY_Output(900, h()-60, 55, 20, "Rel-Bearing:"); 
-  m_rbearing->textsize(info_size); 
-  m_rbearing->labelsize(info_size);
-
-  m_contact_range = new MY_Output(900, h()-30, 55, 20, "Range(m):"); 
-  m_contact_range->textsize(info_size); 
-  m_contact_range->labelsize(info_size);
-
 
   int a_top = h()-323; // eyeballing it
   int a_txt = 25;
@@ -164,6 +155,8 @@ SSV_GUI::SSV_GUI(int g_w, int g_h, const char *g_l)
   m_engage_all_ok->callback((Fl_Callback*)SSV_GUI::cb_MOOS_Button,(void*)4);
   m_engage_all_off->callback((Fl_Callback*)SSV_GUI::cb_MOOS_Button,(void*)5);
   
+  
+
 
   int ca_top = h()-600;
   int ca_txt = 25;
@@ -294,29 +287,18 @@ void SSV_GUI::pushPending(string var, string val)
 
 void SSV_GUI::augmentMenu()
 {
-  mbar->add("Shipside/ShipCentric Toggle", FL_CTRL+'s',(Fl_Callback*)SSV_GUI::cb_CentricToggle,(void*)0, 0);
+  mbar->add("Shipside/ShipCentric Toggle",'s',(Fl_Callback*)SSV_GUI::cb_CentricToggle,(void*)0, 0);
   mbar->add("Shipside/ShipCentric Off",    0, (Fl_Callback*)SSV_GUI::cb_CentricToggle,(void*)1, 0);
   mbar->add("Shipside/ShipCentric On",     0, (Fl_Callback*)SSV_GUI::cb_CentricToggle,(void*)2, FL_MENU_DIVIDER);
-  mbar->add("Shipside/Radial Off", 0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-90, 0);
-  mbar->add("Shipside/Radial On", 0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-91, 0);
-  mbar->add("Shipside/Radial Toggle", 'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-99, FL_MENU_DIVIDER);
+  mbar->add("Shipside/Radial Off",   0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)0, 0);
   mbar->add("Shipside/Radial  100",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)100, 0);
   mbar->add("Shipside/Radial  200",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)200, 0);
   mbar->add("Shipside/Radial  500",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)500, 0);
-  mbar->add("Shipside/Radial 1000",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)1000, FL_MENU_DIVIDER);
-  mbar->add("Shipside/Radial Smaller", FL_CTRL+'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-1, 0);
-  mbar->add("Shipside/Radial Bigger", FL_ALT+'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)1, FL_MENU_DIVIDER);
+  mbar->add("Shipside/Radial 1000",  0, (Fl_Callback*)SSV_GUI::cb_Radial,(void*)1000, 0);
+  mbar->add("Shipside/Radial Cycle", 'r', (Fl_Callback*)SSV_GUI::cb_Radial,(void*)-1, 0);
 
   mbar->add("ForeView/Cycle Focus", 'v', (Fl_Callback*)SSV_GUI::cb_CycleFocus,(void*)0, 0);
 
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=white", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)100, 0);
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=yellow", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)101, 0);
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=red", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)102, 0);
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=dark_blue", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)103, 0);
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=dark_green", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)104, 0);
-  mbar->add("GeoAttr/BearingLine - Edit/bearing_color=dark_red", 0, (Fl_Callback*)SSV_GUI::cb_SSV_SetGeoAttr, (void*)105, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/BearingLine - Toggle", 'x', (Fl_Callback*)SSV_GUI::cb_Bearings, (void*)0, 0);
 };
 
 
@@ -372,18 +354,18 @@ void SSV_GUI::updateXY() {
     return;
   }
 
-  string mtrx_str = doubleToString(mviewer->getVehicleInfo(index,"xpos"),1);
+  string mtrx_str = doubleToString(mviewer->getMetersX(index),1);
   x_mtr->value(mtrx_str.c_str());
-  string mtry_str = doubleToString(mviewer->getVehicleInfo(index,"ypos"),1);
+  string mtry_str = doubleToString(mviewer->getMetersY(index),1);
   y_mtr->value(mtry_str.c_str());
 
-  string spd_str = doubleToString(mviewer->getVehicleInfo(index,"speed"),1);
+  string spd_str = doubleToString(mviewer->getSpd(index),1);
   v_spd->value(spd_str.c_str());
-  
-  string crs_str = doubleToString(mviewer->getVehicleInfo(index,"course"),1);
+
+  string crs_str = doubleToString(mviewer->getCrs(index),1);
   v_crs->value(crs_str.c_str());
 
-  string dep_str = doubleToString(mviewer->getVehicleInfo(index,"depth"),1);
+  string dep_str = doubleToString(mviewer->getDep(index),1);
   v_dep->value(dep_str.c_str());
 
 
@@ -398,23 +380,11 @@ void SSV_GUI::updateXY() {
   v_lat->value(lat_str.c_str());
   v_lon->value(lon_str.c_str());
 
-  double age_ais = mviewer->getVehicleInfo(index,"age_ais");
+  double age_ais = mviewer->getAgeAIS(index);
   string ais_str = doubleToString(age_ais,3);
   if(age_ais == -1)
     ais_str = "n/a";
   v_ais->value(ais_str.c_str());
-
-  double rbearing     = mviewer->getRelativeInfo(index, "relative_bearing");
-  string rbearing_str = doubleToString(rbearing,1);
-  if(rbearing == -1)
-    rbearing_str = "n/a";
-  m_rbearing->value(rbearing_str.c_str());
-
-  double vrange     = mviewer->getRelativeInfo(index, "range");
-  string vrange_str = doubleToString(vrange,1);
-  if(vrange == -1)
-    vrange_str = "n/a";
-  m_contact_range->value(vrange_str.c_str());
 
   if(mviewer->hasVehiName(ownship_b0->label()))
     ownship_b0->labelcolor(FL_BLACK);
@@ -457,20 +427,10 @@ void SSV_GUI::cb_CentricToggle(Fl_Widget* o, int val) {
 
 //----------------------------------------- Radial
 inline void SSV_GUI::cb_Radial_i(int val) {
-
-  if(val == -90)
-    mviewer->setParam("draw_radial", "false");
-  if(val == -91)
-    mviewer->setParam("draw_radial", "true");
-  if(val == -99)
-    mviewer->setParam("draw_radial", "toggle");
-  else if(val == 1)
-    mviewer->setParam("radial_increment", 100);
-  else if(val == -1)
-    mviewer->setParam("radial_increment", -100);
-  else if(val >= 0)
+  if(val >= 0)
     mviewer->setParam("radial_size", (float)(val));
-
+  else
+    mviewer->setParam("radial_increment", (float)(val));
   mviewer->redraw();
   updateXY();
 }
@@ -490,34 +450,6 @@ inline void SSV_GUI::cb_CycleFocus_i(int val) {
 void SSV_GUI::cb_CycleFocus(Fl_Widget* o, int v) {
   int val = (int)(v);
   ((SSV_GUI*)(o->parent()->user_data()))->cb_CycleFocus_i(val);
-}
-
-//----------------------------------------- SSV_SetGeoAttr
-inline void SSV_GUI::cb_SSV_SetGeoAttr_i(int v) {
-  if(v==100) mviewer->setParam("bearing_color", "white");
-  else if(v==101) mviewer->setParam("bearing_color", "yellow");
-  else if(v==102) mviewer->setParam("bearing_color", "red");
-  else if(v==103) mviewer->setParam("bearing_color", "dark_blue");
-  else if(v==104) mviewer->setParam("bearing_color", "dark_green");
-  else if(v==105) mviewer->setParam("bearing_color", "dark_red");
-
-  mviewer->redraw();
-}
-
-void SSV_GUI::cb_SSV_SetGeoAttr(Fl_Widget* o, int v) {
-  int val = (int)(v);
-  ((SSV_GUI*)(o->parent()->user_data()))->cb_SSV_SetGeoAttr_i(val);
-}
-
-//----------------------------------------- Bearings
-inline void SSV_GUI::cb_Bearings_i() {
-  mviewer->setParam("bearing_lines", "toggle");
-  mviewer->redraw();
-  updateXY();
-}
-
-void SSV_GUI::cb_Bearings(Fl_Widget* o) {
-  ((SSV_GUI*)(o->parent()->user_data()))->cb_Bearings_i();
 }
 
 //----------------------------------------- MOOS_Button

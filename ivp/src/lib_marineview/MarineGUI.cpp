@@ -36,8 +36,6 @@ MarineGUI::MarineGUI(int g_w, int g_h, const char *g_l)
   mbar->menu(menu_);
     
   cmviewer = 0;
-
-  augmentMenu();
 }
 
 //-------------------------------------------------------------------
@@ -71,141 +69,20 @@ Fl_Menu_Item MarineGUI::menu_[] = {
  {"Toggle Hash",      'h', (Fl_Callback*)MarineGUI::cb_ToggleHash, (void*)-1, 0},
  {"Hash Lighter",     FL_CTRL+'h', (Fl_Callback*)MarineGUI::cb_HashShade,  (void*)+1, 0},
  {"Hash Darker",      FL_ALT +'h', (Fl_Callback*)MarineGUI::cb_HashShade,  (void*)-1, FL_MENU_DIVIDER},
+ {"Toggle Grid(s)",      'g', (Fl_Callback*)MarineGUI::cb_ToggleGrids, (void*)0, FL_MENU_DIVIDER},
+ {"Toggle Datum",        'd', (Fl_Callback*)MarineGUI::cb_ToggleDatum, (void*)0, 0},
+ {"Datum Bigger", FL_CTRL+'d', (Fl_Callback*)MarineGUI::cb_DatumSize,  (void*)+1, 0},
+ {"Datum Smaller", FL_ALT +'d', (Fl_Callback*)MarineGUI::cb_DatumSize,  (void*)-1, FL_MENU_DIVIDER},
  {"Hash 10",      FL_ALT+'1', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)10,  FL_MENU_RADIO},
  {"Hash 50",      FL_ALT+'2', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)50,  FL_MENU_RADIO},
  {"Hash 100",     FL_ALT+'3', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)100, FL_MENU_RADIO|FL_MENU_VALUE},
-{"Hash 200",     FL_ALT+'4', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)200, FL_MENU_RADIO},
+ {"Hash 200",     FL_ALT+'4', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)200, FL_MENU_RADIO},
  {"Hash 500",     FL_ALT+'5', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)500, FL_MENU_RADIO},
  {"Hash 1000",     FL_ALT+'6', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)1000, FL_MENU_RADIO},
  {"Hash Auto",    FL_ALT+'7', (Fl_Callback*)MarineGUI::cb_HashDelta,  (void*)-1, FL_MENU_RADIO},
  {0},
-
- {"GeoAttr", 0,  0, 0, 64, 0, 0, 14, 0},
- {0},
-
  {0}
 };
-
-
-
-//-------------------------------------------------------------------
-// Procedure: augmentMenu
-
-void MarineGUI::augmentMenu() 
-{
-  mbar->add("GeoAttr/Polygons - Edit/display_poly_labels=on", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)150, 0);
-  mbar->add("GeoAttr/Polygons - Edit/display_poly_labels=off", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)151, 0);
-  mbar->add("GeoAttr/Polygons - Edit/display_poly_labels toggle", 'P', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)152, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)100, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)101, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)102, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)103, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)104, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Polygons - Edit/poly_edge_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)120, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_edge_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)121, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_edge_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)122, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_edge_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)123, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_edge_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)124, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=1", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)140, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=2", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)141, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=3", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)142, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=5", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)143, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=8", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)144, 0);
-  mbar->add("GeoAttr/Polygons - Edit/poly_vertex_size=10", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)145, 0);
-
-  mbar->add("GeoAttr/Polygons - Toggle", 'p', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)160, FL_MENU_DIVIDER);
-
-  // --------------------------------- SegLists
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)200, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)201, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)202, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)203, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)204, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/SegLists - Edit/seglist_edge_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)220, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_edge_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)221, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_edge_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)222, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_edge_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)223, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_edge_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)224, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=1", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)240, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=2", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)241, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=3", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)242, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=5", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)243, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=8", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)244, 0);
-  mbar->add("GeoAttr/SegLists - Edit/seglist_vertex_size=10", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)245, 0);
-
-  mbar->add("GeoAttr/SegLists - Toggle", 's', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)250, FL_MENU_DIVIDER);
-
-  // --------------------------------- Points
-  mbar->add("GeoAttr/Points - Edit/display_point_labels=on", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)500, 0);
-  mbar->add("GeoAttr/Points - Edit/display_point_labels=off", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)501, 0);
-  mbar->add("GeoAttr/Points - Edit/display_point_labels toggle", 'J', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)502, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Points - Edit/point_vertex_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)510, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)511, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)512, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)513, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)514, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=1", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)520, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=2", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)521, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=3", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)522, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=5", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)523, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=8", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)524, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size=10", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)525, FL_MENU_DIVIDER);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size smaller", FL_CTRL+'j', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)530, 0);
-  mbar->add("GeoAttr/Points - Edit/point_vertex_size bigger", FL_ALT+'j', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)531, 0);
-
-  mbar->add("GeoAttr/Points - Toggle", 'j', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)550, FL_MENU_DIVIDER);
-
-  // -------------------------------- XYGrids
-  mbar->add("GeoAttr/XYGrids - Edit/grid_edge_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)300, 0);
-  mbar->add("GeoAttr/XYGrids - Edit/grid_edge_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)301, 0);
-  mbar->add("GeoAttr/XYGrids - Edit/grid_edge_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)302, 0);
-  mbar->add("GeoAttr/XYGrids - Edit/grid_edge_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)303, 0);
-  mbar->add("GeoAttr/XYGrids - Edit/grid_edge_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)304, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/XYGrids - Toggle", 'g', (Fl_Callback*)MarineGUI::cb_ToggleGrids, (void*)0, FL_MENU_DIVIDER);
-
-  // --------------------------------- Datum
-  mbar->add("GeoAttr/Datum - Edit/datum_color=red", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)400, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_color=white", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)401, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_color=yellow", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)402, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_color=dark_blue", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)403, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_color=dark_green", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)404, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Datum - Edit/datum_size=1", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)440, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size=3", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)441, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size=5", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)442, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size=10", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)443, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size=15", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)444, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size=20", 0, (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)445, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Datum - Edit/datum_size smaller", FL_CTRL+'d', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)448, 0);
-  mbar->add("GeoAttr/Datum - Edit/datum_size larger", FL_ALT+'d', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)449, 0);
-
-  mbar->add("GeoAttr/Datum - Toggle", 'd', (Fl_Callback*)MarineGUI::cb_ToggleDatum, (void*)0, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/Markers - Edit/marker_scale reset", FL_CTRL+FL_ALT+'m', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2000, 0);
-  mbar->add("GeoAttr/Markers - Edit/marker_scale *= 0.80", FL_CTRL+'m', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2001, 0);
-  mbar->add("GeoAttr/Markers - Edit/marker_scale *= 1.25", FL_ALT+'m', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2002, FL_MENU_DIVIDER);
-  mbar->add("GeoAttr/Markers - Edit/draw labels  toggle", 'l', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2020, FL_MENU_DIVIDER);
-  mbar->add("GeoAttr/Markers - Edit/label colors toggle", 'L', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2030, 0);
-
-  mbar->add("GeoAttr/Markers - Toggle", 'm', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2050, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/OpArea - Edit/op_area reset", FL_CTRL+FL_ALT+'u', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2100, 0);
-  mbar->add("GeoAttr/OpArea - Edit/op_area lighter *= 0.80", FL_CTRL+'u', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2101, 0);
-  mbar->add("GeoAttr/OpArea - Edit/op_area darker *= 1.25", FL_ALT+'u', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2102, FL_MENU_DIVIDER);
-  mbar->add("GeoAttr/OpArea - Edit/op_area labels  toggle", 'U', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2120, FL_MENU_DIVIDER);
-
-  mbar->add("GeoAttr/OpArea - Toggle", 'u', (Fl_Callback*)MarineGUI::cb_MG_SetGeoAttr, (void*)2150, FL_MENU_DIVIDER);
-}
-
 
 //----------------------------------------------------------
 // Procedure: handle
@@ -248,7 +125,7 @@ void MarineGUI::readTiffB(string filename)
 //----------------------------------------------------------
 // Procedure: addGrid
 
-void MarineGUI::addGrid(const XYGrid& new_grid)
+void MarineGUI::addGrid(XYGrid new_grid)
 {
   if(cmviewer) {
     cmviewer->addGrid(new_grid);
@@ -259,37 +136,19 @@ void MarineGUI::addGrid(const XYGrid& new_grid)
 //----------------------------------------------------------
 // Procedure: addPoly
 
-void MarineGUI::addPoly(const XYPolygon& new_poly)
+void MarineGUI::addPoly(XYPolygon new_poly)
 {
   if(cmviewer)
     cmviewer->addPoly(new_poly);
 }
 
 //----------------------------------------------------------
-// Procedure: addSegList
-
-void MarineGUI::addSegList(const XYSegList& new_seglist)
-{
-  if(cmviewer)
-    cmviewer->addSegList(new_seglist);
-}
-
-//----------------------------------------------------------
 // Procedure: addCircle
 
-void MarineGUI::addCircle(const XYCircle& new_circ)
+void MarineGUI::addCircle(XYCircle new_circ)
 {
   if(cmviewer)
     cmviewer->addCircle(new_circ);
-}
-
-//----------------------------------------------------------
-// Procedure: addPoint
-
-void MarineGUI::addPoint(const XYPoint& new_point)
-{
-  if(cmviewer)
-    cmviewer->addPoint(new_point);
 }
 
 //----------------------------------------- Zoom In
@@ -357,102 +216,9 @@ void MarineGUI::cb_HashShade(Fl_Widget* o, int v) {
   ((MarineGUI*)(o->parent()->user_data()))->cb_HashShade_i(v);
 }
 
-//----------------------------------------- MG_SetGeoAttr
-inline void MarineGUI::cb_MG_SetGeoAttr_i(int v) {
-  if(v==100) cmviewer->setGeoParam("polygon_vertex_color", "red");
-  else if(v==101) cmviewer->setGeoParam("polygon_vertex_color", "white");
-  else if(v==102) cmviewer->setGeoParam("polygon_vertex_color", "yellow");
-  else if(v==103) cmviewer->setGeoParam("polygon_vertex_color", "DarkBlue");
-  else if(v==104) cmviewer->setGeoParam("polygon_vertex_color", "DarkGreen");
-
-  else if(v==120) cmviewer->setGeoParam("polygon_edge_color", "red");
-  else if(v==121) cmviewer->setGeoParam("polygon_edge_color", "white");
-  else if(v==122) cmviewer->setGeoParam("polygon_edge_color", "yellow");
-  else if(v==123) cmviewer->setGeoParam("polygon_edge_color", "DarkBlue");
-  else if(v==124) cmviewer->setGeoParam("polygon_edge_color", "DarkGreen");
-
-  else if(v==140) cmviewer->setGeoParam("polygon_vertex_size", "1");
-  else if(v==141) cmviewer->setGeoParam("polygon_vertex_size", "2");
-  else if(v==142) cmviewer->setGeoParam("polygon_vertex_size", "3");
-  else if(v==143) cmviewer->setGeoParam("polygon_vertex_size", "5");
-  else if(v==144) cmviewer->setGeoParam("polygon_vertex_size", "8");
-  else if(v==145) cmviewer->setGeoParam("polygon_vertex_size", "10");
-
-  else if(v==150) cmviewer->setGeoParam("polygon_viewable_labels", "on");
-  else if(v==151) cmviewer->setGeoParam("polygon_viewable_labels", "off");
-  else if(v==152) cmviewer->setGeoParam("polygon_viewable_labels", "toggle");
-
-  else if(v==160) cmviewer->setGeoParam("polygon_viewable_all", "toggle");
-  
-  //---------------------------------- SegLists
-
-  else if(v==250) cmviewer->setGeoParam("display_seglists", "toggle");
-
-  //---------------------------------- Points
-  else if(v==500) cmviewer->setGeoParam("point_viewable_labels", "on");
-  else if(v==501) cmviewer->setGeoParam("point_viewable_labels", "off");
-  else if(v==502) cmviewer->setGeoParam("point_viewable_labels", "toggle");
-
-  else if(v==510) cmviewer->setGeoParam("point_vertex_color", "red");
-  else if(v==511) cmviewer->setGeoParam("point_vertex_color", "white");
-  else if(v==512) cmviewer->setGeoParam("point_vertex_color", "yellow");
-  else if(v==513) cmviewer->setGeoParam("point_vertex_color", "DarkBlue");
-  else if(v==514) cmviewer->setGeoParam("point_vertex_color", "DarkGreen");
-
-  else if(v==520) cmviewer->setGeoParam("point_vertex_size", "1");
-  else if(v==521) cmviewer->setGeoParam("point_vertex_size", "2");
-  else if(v==522) cmviewer->setGeoParam("point_vertex_size", "3");
-  else if(v==523) cmviewer->setGeoParam("point_vertex_size", "5");
-  else if(v==524) cmviewer->setGeoParam("point_vertex_size", "8");
-  else if(v==525) cmviewer->setGeoParam("point_vertex_size", "10");
-
-  else if(v==530) cmviewer->setGeoParam("point_vertex_size", "-1");
-  else if(v==531) cmviewer->setGeoParam("point_vertex_size", "+1");
-
-  else if(v==550) cmviewer->setGeoParam("point_viewable_all", "toggle");
-
-  //---------------------------------- Datum
-
-  else if(v==400) cmviewer->setCommonParam("datum_color", "red");
-  else if(v==401) cmviewer->setCommonParam("datum_color", "white");
-  else if(v==402) cmviewer->setCommonParam("datum_color", "yellow");
-  else if(v==403) cmviewer->setCommonParam("datum_color", "dark_blue");
-  else if(v==404) cmviewer->setCommonParam("datum_color", "dark_green");
-
-  else if(v==440) cmviewer->setCommonParam("datum_size", 1);
-  else if(v==441) cmviewer->setCommonParam("datum_size", 3);
-  else if(v==442) cmviewer->setCommonParam("datum_size", 5);
-  else if(v==443) cmviewer->setCommonParam("datum_size", 10);
-  else if(v==444) cmviewer->setCommonParam("datum_size", 15);
-  else if(v==445) cmviewer->setCommonParam("datum_size", 20);
-  else if(v==448) cmviewer->setCommonParam("datum_size_add", -1);
-  else if(v==449) cmviewer->setCommonParam("datum_size_add", +1);
-
-  else if(v==2000) cmviewer->setCommonParam("marker_scale_all", "reset");
-  else if(v==2001) cmviewer->setCommonParam("marker_scale_all", "smaller");
-  else if(v==2002) cmviewer->setCommonParam("marker_scale_all", "bigger");
-  else if(v==2020) cmviewer->setCommonParam("draw_marker_labels", "toggle");
-  else if(v==2030) cmviewer->setCommonParam("marker_label_color", "toggle");
-  else if(v==2050) cmviewer->setCommonParam("draw_markers", "toggle");
-
-  else if(v==2100) cmviewer->setCommonParam("op_area_config", "reset");
-  else if(v==2101) cmviewer->setCommonParam("op_area_line_shade_mod", "1.05");
-  else if(v==2102) cmviewer->setCommonParam("op_area_line_shade_mod", "0.95");
-  else if(v==2120) cmviewer->setCommonParam("op_area_viewable_labels", "toggle");
-  else if(v==2150) cmviewer->setCommonParam("op_area_viewable_all", "toggle");
-
-  else 
-    return;
-
-  cmviewer->redraw();
-}
-void MarineGUI::cb_MG_SetGeoAttr(Fl_Widget* o, int v) {
-  ((MarineGUI*)(o->parent()->user_data()))->cb_MG_SetGeoAttr_i(v);
-}
-
 //----------------------------------------- ToggleDatum
 inline void MarineGUI::cb_ToggleDatum_i() {
-  cmviewer->setCommonParam("display_datum", "toggle");
+  cmviewer->setParam("display_datum", "toggle");
   cmviewer->redraw();
 }
 void MarineGUI::cb_ToggleDatum(Fl_Widget* o) {
@@ -461,7 +227,7 @@ void MarineGUI::cb_ToggleDatum(Fl_Widget* o) {
 
 //----------------------------------------- ToggleGrids
 inline void MarineGUI::cb_ToggleGrids_i() {
-  cmviewer->setCommonParam("display_grids", "toggle");
+  cmviewer->setParam("display_grids", "toggle");
   cmviewer->redraw();
 }
 void MarineGUI::cb_ToggleGrids(Fl_Widget* o) {
@@ -470,7 +236,7 @@ void MarineGUI::cb_ToggleGrids(Fl_Widget* o) {
 
 //----------------------------------------- DatumSize
 inline void MarineGUI::cb_DatumSize_i(int amt) {
-  cmviewer->setCommonParam("datum_size_add", (float)(amt));
+  cmviewer->setParam("datum_size", (float)(amt));
   cmviewer->redraw();
 }
 void MarineGUI::cb_DatumSize(Fl_Widget* o, int v) {

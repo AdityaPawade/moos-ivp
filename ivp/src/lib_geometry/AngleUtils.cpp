@@ -75,8 +75,6 @@ double relAng(double xa, double ya, double xb, double yb)
   double avalDG = radToDegrees(avalPI);
   double retVal = (avalDG * sop) + w;
 
-  retVal = angle360(retVal);
-
   return(retVal);
 }
 

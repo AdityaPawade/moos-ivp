@@ -25,18 +25,17 @@
 
 #include <vector>
 #include <string>
-#include "XYObject.h"
 
-class XYSegList : public XYObject {
+class XYSegList {
 public:
   XYSegList() {};
   virtual ~XYSegList() {};
 
   // XYSegList create and edit functions
-  void   add_vertex(double, double, double=0);       
-  void   alter_vertex(double, double, double=0);
+  void   add_vertex(double, double);       
+  void   alter_vertex(double, double);
   void   delete_vertex(double, double);
-  void   insert_vertex(double, double, double=0);
+  void   insert_vertex(double, double);
   void   clear();
 
 public:
@@ -53,15 +52,16 @@ public:
 public:
   unsigned int size() const          {return(vertex_x.size());};
 
+  void   set_label(std::string str)  {label=str;};
   double get_vx(unsigned int) const;
   double get_vy(unsigned int) const;
-  double get_vz(unsigned int) const;
   double get_center_x() const;
   double get_center_y() const;
   double get_avg_x() const;
   double get_avg_y() const;
 
   std::string get_spec() const;
+  std::string get_label() const {return(label);};
 
 protected:
   int    closest_vertex(double, double) const; 
@@ -73,7 +73,7 @@ protected:
 protected:
   std::vector<double> vertex_x;
   std::vector<double> vertex_y;
-  std::vector<double> vertex_z;
+  std::string         label;
 };
 
 #endif

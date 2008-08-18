@@ -33,84 +33,6 @@
 using namespace std;
 
 //---------------------------------------------------------------
-// Procedure: stringToPoint
-//
-/// Initializes a point based on a string specification
-/// Format of the string is "x=val, y=val, z=val, label=val, type=val"
-
-
-XYPoint stringToPoint(string str)
-{
-  XYPoint null_point;
-
-  str = tolower(stripBlankEnds(str));
-  vector<string> mvector = parseString(str, ',');
-  int vsize = mvector.size();
-  
-  // Below are the mandatory parameters - check they are set.
-  bool x_set  = false;
-  bool y_set  = false;
-
-  string label, type, source;
-  double x, y;
-  double z    = 0;
-  double snap = 0;
-  double size = 1;
-  bool   active = true;
-
-  for(int i=0; i<vsize; i++) {
-    vector<string> svector = parseString(mvector[i], '=');
-    if(svector.size() != 2)
-      return(null_point);
-    string param = stripBlankEnds(svector[0]);
-    string value = stripBlankEnds(svector[1]);
-    double dval  = atof(value.c_str());
-    if((param == "x") && isNumber(value)) {
-      x_set = true;
-      x = dval;
-    }
-    else if((param == "y") && isNumber(value)) {
-      y_set = true;
-      y = dval;
-    }
-    else if((param == "z") && isNumber(value))
-      z = dval;
-    else if((param == "size") && isNumber(value))
-      size = dval;
-    else if((param == "snap") && (isNumber(value))) {
-      if(dval >= 0)
-	snap = dval;
-    }
-    else if(param == "label")
-      label = value;
-    else if(param == "source")
-      source = value;
-    else if(param == "type")
-      type = value;
-    else if(param == "active")
-      active = (tolower(value) == "true");
-  }
-
-  if(!x_set || !y_set)
-    return(null_point);
-  
-  XYPoint new_point;
-  
-  new_point.set_vertex(x,y,z);
-  new_point.set_label(label);
-  new_point.set_type(type);
-  new_point.set_size(size);
-  new_point.set_active(active);
-  new_point.set_source(source);
-  
-  if(snap>=0)
-    new_point.apply_snap(snap);
-  
-  return(new_point);
-}
-
-
-//---------------------------------------------------------------
 // Procedure: stringToPoly
 //
 
@@ -165,14 +87,13 @@ XYPolygon stringPairsToEllipsePoly(string str)
   // Below are the mandatory parameters - check they are set.
   bool xpos_set    = false;
   bool ypos_set    = false;
-  bool zval_set    = false;
   bool major_set   = false;
   bool minor_set   = false;
   bool degrees_set = false;  // Either degrees OR radians must
   bool radians_set = false;  // be specified.
   bool pts_set     = false;
 
-  double xpos, ypos, zval, major, minor, radians, degrees, snap=0;
+  double xpos, ypos, major, minor, radians, degrees, snap=0;
   string label;
   int    pts;
   
@@ -193,10 +114,6 @@ XYPolygon stringPairsToEllipsePoly(string str)
     else if((param == "y") && (isNumber(value))) {
       ypos_set = true;
       ypos = atof(value.c_str());
-    }
-    else if((param == "z") && (isNumber(value))) {
-      zval_set = true;
-      zval = atof(value.c_str());
     }
     else if((param == "major") && (isNumber(value))) {
       double dval = atof(value.c_str());
@@ -256,7 +173,7 @@ XYPolygon stringPairsToEllipsePoly(string str)
       (minor/2 * sin(angle) * sin(rads));
     double new_y = ypos + (minor/2 * sin(angle) * cos(rads)) +
       (major/2 * cos(angle) * sin(rads));
-    new_poly.add_vertex(new_x, new_y, zval, false);
+    new_poly.add_vertex(new_x, new_y, false);
   }
 
 
@@ -288,7 +205,7 @@ XYPolygon stringPairsToEllipsePoly(string str)
 //
 /// Initializes a polygon (rectangle) based on two points
 /// The format of the string is "x1=val, y1=val, x2=val, y2=val, 
-//           axis_pad=val, perp_pad=val, [zval=val]".
+//           axis_pad=val, perp_pad=val".
 
 
 XYPolygon stringPairsToPylonPoly(string str)
@@ -304,11 +221,10 @@ XYPolygon stringPairsToPylonPoly(string str)
   bool y1_set  = false;
   bool x2_set  = false;
   bool y2_set  = false;
-  bool zval_set = false;
   bool axis_pad_set = false;
   bool perp_pad_set = false;  // Either degrees OR radians must
 
-  double x1, y1, x2, y2, zval, axis_pad, perp_pad, snap=0;
+  double x1, y1, x2, y2, axis_pad, perp_pad, snap=0;
   string label;
   
   for(int i=0; i<vsize; i++) {
@@ -333,10 +249,6 @@ XYPolygon stringPairsToPylonPoly(string str)
     else if((param == "y2") && isNumber(value)) {
       y2_set = true;
       y2 = dval;
-    }
-    else if((param == "z") && isNumber(value)) {
-      zval_set = true;
-      zval = dval;
     }
     else if((param == "axis_pad") && isNumber(value)) {
       if(dval >= 0) {
@@ -389,10 +301,10 @@ XYPolygon stringPairsToPylonPoly(string str)
   // Now add the four points. The "false" in the first three
   // calls indicates that no determination of convexity is made.
   // That is saved only for the last call - minor time savings.
-  new_poly.add_vertex(px1,py1,zval,false);
-  new_poly.add_vertex(px2,py2,zval,false);
-  new_poly.add_vertex(px3,py3,zval,false);
-  new_poly.add_vertex(px4,py4,zval,true);
+  new_poly.add_vertex(px1,py1,false);
+  new_poly.add_vertex(px2,py2,false);
+  new_poly.add_vertex(px3,py3,false);
+  new_poly.add_vertex(px4,py4,true);
 
   if(snap>=0)
     new_poly.apply_snap(snap);
@@ -424,11 +336,10 @@ XYPolygon stringPairsToRadialPoly(string str)
   // Below are the mandatory parameters - check they are set.
   bool xpos_set   = false;
   bool ypos_set   = false;
-  bool zval_set   = false;
   bool radius_set = false;
   bool pts_set    = false;
 
-  double xpos, ypos, zval, radius, snap=0;
+  double xpos, ypos, radius, snap=0;
   string label;
   int    pts;
   
@@ -449,10 +360,6 @@ XYPolygon stringPairsToRadialPoly(string str)
     else if((param == "y") && (isNumber(value))) {
       ypos_set = true;
       ypos = atof(value.c_str());
-    }
-    else if((param == "z") && (isNumber(value))) {
-      zval_set = true;
-      zval = atof(value.c_str());
     }
     else if((param == "radius") && (isNumber(value))) {
       double dval = atof(value.c_str());
@@ -487,7 +394,7 @@ XYPolygon stringPairsToRadialPoly(string str)
   for(double deg=(delta/2); deg<360; deg+=delta) {
     double new_x, new_y;
     projectPoint(deg, radius, xpos, ypos, new_x, new_y);
-    new_poly.add_vertex(new_x, new_y, zval, false);
+    new_poly.add_vertex(new_x, new_y, false);
   }
 
   // Make a call to determine_convexity here because convexity 
@@ -590,16 +497,10 @@ XYPolygon stringShortToPointsPoly(string str)
   for(int i=0; i<vsize; i++) {
     mvector[i] = stripBlankEnds(mvector[i]);
     vector<string> svector = parseString(mvector[i], ',');
-    if((svector.size() < 2) || (svector.size() > 3))
+    if(svector.size() != 2)
       return(null_poly);
     string xstr = stripBlankEnds(svector[0]);
     string ystr = stripBlankEnds(svector[1]);
-    string zstr = "";
-    if(svector.size()==3)
-      zstr = stripBlankEnds(svector[2]);
-    
-    if((zstr != "") && (!isNumber(zstr)))
-      return(null_poly);
 
     if((!isNumber(xstr)) || (!isNumber(ystr))) {
       xstr = tolower(xstr);
@@ -611,12 +512,7 @@ XYPolygon stringShortToPointsPoly(string str)
     else {
       double xval = atof(xstr.c_str());
       double yval = atof(ystr.c_str());
-      if(zstr == "")
-	new_poly.add_vertex(xval, yval, false);
-      else {
-	double zval = atof(zstr.c_str());
-	new_poly.add_vertex(xval, yval, zval, false);
-      }	
+      new_poly.add_vertex(xval, yval, false);
     }
   }
 
@@ -674,16 +570,10 @@ XYSegList stringShortToPointsSegList(string str)
   for(int i=0; i<vsize; i++) {
     mvector[i] = stripBlankEnds(mvector[i]);
     vector<string> svector = parseString(mvector[i], ',');
-    if((svector.size() < 2) || (svector.size() > 3))
+    if(svector.size() != 2)
       return(null_seglist);
     string xstr = stripBlankEnds(svector[0]);
     string ystr = stripBlankEnds(svector[1]);
-    string zstr = "";
-    if(svector.size()==3)
-      zstr = stripBlankEnds(svector[2]);
-    
-    if((zstr != "") && (!isNumber(zstr)))
-      return(null_seglist);
     
     if((!isNumber(xstr)) || (!isNumber(ystr))) {
       xstr = tolower(xstr);
@@ -695,12 +585,7 @@ XYSegList stringShortToPointsSegList(string str)
     else {
       double xval = atof(xstr.c_str());
       double yval = atof(ystr.c_str());
-      if(zstr == "")
-	new_seglist.add_vertex(xval, yval);
-      else {
-	double zval = atof(zstr.c_str());
-	new_seglist.add_vertex(xval, yval, zval);	
-      }
+      new_seglist.add_vertex(xval, yval);
     }
   }
   return(new_seglist);

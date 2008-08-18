@@ -13,7 +13,7 @@ SET(SRC
    XYGrid.cpp            XYHexGrid.cpp          
    XYHexagon.cpp         XYPolygon.cpp          
    XYSegList.cpp         XYSquare.cpp         
-   XYArtifactGrid.cpp    XYPoint.cpp
+   XYArtifactGrid.cpp  
 )
 
 ADD_LIBRARY(geometry ${SRC})
