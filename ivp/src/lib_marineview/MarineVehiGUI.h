@@ -31,17 +31,26 @@ public:
   virtual ~MarineVehiGUI() {};
 
 protected:
-  inline void cb_ToggleTrails_i();
-  static void cb_ToggleTrails(Fl_Widget*);
+  inline void cb_ToggleVehicles_i();
+  static void cb_ToggleVehicles(Fl_Widget*);
+
+  inline void cb_CycleFocus_i();
+  static void cb_CycleFocus(Fl_Widget*);
+
+  inline void cb_AltTrails_i(int);
+  static void cb_AltTrails(Fl_Widget*, int);
 
   inline void cb_ToggleTrailColor_i();
   static void cb_ToggleTrailColor(Fl_Widget*);
 
-  inline void cb_ToggleTrailConnect_i();
-  static void cb_ToggleTrailConnect(Fl_Widget*);
+  inline void cb_AltTrailConnect_i(int);
+  static void cb_AltTrailConnect(Fl_Widget*, int);
 
   inline void cb_AltTrailGap_i(int);
   static void cb_AltTrailGap(Fl_Widget*, int);
+
+  inline void cb_AltTrailLength_i(int);
+  static void cb_AltTrailLength(Fl_Widget*, int);
 
   inline void cb_AltTrailSize_i(int);
   static void cb_AltTrailSize(Fl_Widget*, int);
@@ -57,6 +66,15 @@ protected:
 
   inline void cb_DataView_i(int);
   static void cb_DataView(Fl_Widget*, int);
+
+  inline void cb_MVG_SetGeoAttr_i(int);
+  static void cb_MVG_SetGeoAttr(Fl_Widget*, int);
+
+  inline void cb_CenterView_i(int);
+  static void cb_CenterView(Fl_Widget*, int);
+
+  int    m_trail_color_ix;
+  int    m_vname_color_ix;
 };
 #endif
 

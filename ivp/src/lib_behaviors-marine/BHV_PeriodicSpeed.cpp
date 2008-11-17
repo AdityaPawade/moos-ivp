@@ -38,7 +38,12 @@ using namespace std;
 BHV_PeriodicSpeed::BHV_PeriodicSpeed(IvPDomain gdomain) : 
   IvPBehavior(gdomain)
 {
-  this->setParam("descriptor", "(d)bhv_periodic_speed");
+  this->setParam("descriptor", "periodic_speed");
+
+  // These parameters really should be set in the behavior file, but are
+  // left here for now to smoothen the transition (Aug 10, 2008, mikerb)
+  this->setParam("activeflag",   "PERIODIC_SPEED=1");
+  this->setParam("inactiveflag", "PERIODIC_SPEED=0");
 
   m_domain = subDomain(m_domain, "speed");
 
@@ -50,9 +55,9 @@ BHV_PeriodicSpeed::BHV_PeriodicSpeed(IvPDomain gdomain) :
   m_period_peakwidth = 0;
 
   // Initialize State Variables
-  m_state_inperiod  = false;
+  m_state_active    = false;
   m_first_iteration = true;
-  m_mark_time     = 0;
+  m_mark_time       = 0;
 }
 
 //-----------------------------------------------------------
@@ -98,6 +103,14 @@ bool BHV_PeriodicSpeed::setParam(string g_param, string g_val)
     m_period_peakwidth = dval;
     return(true);
   }  
+  else if(g_param == "stat_pending_active") {
+    m_var_pending_active = g_val;
+    return(true);
+  }  
+  else if(g_param == "stat_pending_inactive") {
+    m_var_pending_inactive = g_val;
+    return(true);
+  }  
   else if(g_param == "period_flag") {
     g_val = findReplace(g_val, ',', '=');
     vector<string> svector = parseString(g_val, '=');
@@ -132,37 +145,42 @@ IvPFunction *BHV_PeriodicSpeed::onRunState()
 
   double time_since_mark = curr_time - m_mark_time;
 
-  double time_to_slowdown = 0;
-  double time_to_speedup  = 0;
+  double time_to_active   = 0;
+  double time_to_inactive = 0;
 
-  if(m_state_inperiod) {
+  if(m_state_active) {
     if(time_since_mark > m_period_length) {
-      m_state_inperiod = false;
+      m_state_active = false;
       m_mark_time = curr_time;
       time_since_mark = 0;
     }
-    time_to_speedup = m_period_length - time_since_mark;
+    time_to_inactive = m_period_length - time_since_mark;
   }
   else {
     if(time_since_mark > m_period_gap) {
-      m_state_inperiod = true;
+      m_state_active = true;
       m_mark_time = curr_time;
       time_since_mark = 0;
     }
     else
-      time_to_slowdown = m_period_gap - time_since_mark;
+      time_to_active = m_period_gap - time_since_mark;
   }
 
-  postMessage("TIME_TO_SPEEDUP",  time_to_speedup);
-  postMessage("TIME_TO_SLOWDOWN", time_to_slowdown);
+  // For double-value postings of time, we post at integer precision 
+  // when not close to zero to reduce the number of postings to the DB. 
 
-  if(m_state_inperiod)
-    postMessage("PERIODIC_SPEED", 1);
+  if(time_to_inactive <= 1)
+    postMessage(m_var_pending_inactive,  time_to_inactive);
   else
-    postMessage("PERIODIC_SPEED", 0);
+    postIntMessage(m_var_pending_inactive,  time_to_inactive);
+
+  if(time_to_active <= 1)
+    postMessage(m_var_pending_active, time_to_active);
+  else
+    postIntMessage(m_var_pending_active, time_to_active);
 
 
-  if(!m_state_inperiod)
+  if(!m_state_active)
     return(0);
 
   ZAIC_PEAK zaic(m_domain, "speed");

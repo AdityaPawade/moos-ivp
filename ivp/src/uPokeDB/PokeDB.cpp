@@ -11,6 +11,72 @@
 
 using namespace std;
 
+extern bool MOOSAPP_OnConnect(void*);
+extern bool MOOSAPP_OnDisconnect(void*);
+
+//------------------------------------------------------------
+// Constructor
+
+PokeDB::PokeDB()
+{
+  m_db_start_time = 0; 
+  m_iteration     = 0; 
+  m_sServerHost   = "localhost"; 
+  m_lServerPort   = 9000;
+
+  m_configure_comms_locally = false;
+}
+
+//------------------------------------------------------------
+// Constructor
+
+PokeDB::PokeDB(string g_server_host, long int g_server_port)
+{
+  m_db_start_time = 0; 
+  m_iteration     = 0; 
+  m_sServerHost   = g_server_host; 
+  m_lServerPort   = g_server_port;
+
+  m_configure_comms_locally = false;
+}
+
+//------------------------------------------------------------
+// Procedure: ConfigureComms
+//      Note: Overload the MOOSApp::ConfigureComms implementation
+//            which would have grabbed the port/host info from the
+//            .moos file instead.
+
+bool PokeDB::ConfigureComms()
+{
+  //cout << "PokeDB::ConfigureComms:" << endl;
+  //cout << "  m_sServerHost: " << M_Sserverhost << endl;
+  //cout << "  m_lServErport: " << m_lServerPort << endl;
+
+  if(!m_configure_comms_locally) 
+    return(CMOOSApp::ConfigureComms());
+
+  //cout << "**Doing things locally. " << endl;
+
+  //register a callback for On Connect
+  m_Comms.SetOnConnectCallBack(MOOSAPP_OnConnect, this);
+  
+  //and one for the disconnect callback
+  m_Comms.SetOnDisconnectCallBack(MOOSAPP_OnDisconnect, this);
+  
+  //start the comms client....
+  if(m_sMOOSName.empty())
+    m_sMOOSName = m_sAppName;
+  
+  m_nCommsFreq = 10;
+
+  m_Comms.Run(m_sServerHost.c_str(), 
+	      m_lServerPort,
+	      m_sMOOSName.c_str(), 
+	      m_nCommsFreq);
+  
+  return(true);
+}
+
 //------------------------------------------------------------
 // Procedure: Iterate()
 

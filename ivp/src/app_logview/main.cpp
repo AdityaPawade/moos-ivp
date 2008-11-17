@@ -33,10 +33,12 @@
 #include "LogPlot.h"
 #include "Populator_LogPlots.h"
 #include "Populator_GridPlot.h"
+#include "LMV_Utils.h"
 
 using namespace std;
 
 void help_message();
+void version_message();
 
 REPLAY_GUI* gui = 0;
 
@@ -61,9 +63,14 @@ int main(int argc, char *argv[])
   string gui_size = "large";
 
   // Look for a request for help
-  res = getArg(argc, argv, 0, "-h", "--help");
-  if(res) {
+  if(scanArgs(argc, argv, "-h", "--help", "-help")) {
     help_message();
+    return(0);
+  }
+
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    version_message();
     return(0);
   }
 
@@ -99,7 +106,7 @@ int main(int argc, char *argv[])
     if(arg=="xsmall") gui_size = "xsmall";
   }
 
-  // Find all the slog files provided on the command line
+  // Find all the alog files provided on the command line
   //---------------------------------------------------------------------
   vector<string> alog_files;
   vector<double> alog_files_skew;
@@ -118,7 +125,7 @@ int main(int argc, char *argv[])
     return(0);
   }
   
-  // Read in the skews from each slog file
+  // Read in the skews from each alog file
   //---------------------------------------------------------------------
   double min_skew = 0;
   for(k=0; k<alog_files.size(); k++) {
@@ -147,6 +154,7 @@ int main(int argc, char *argv[])
   vector<GridPlot> gridplots;
 
   MBTimer parse_timer;
+#if 0
   parse_timer.start();
   cout << "Parsing alog files to build GridPlots..." << endl;
   
@@ -163,14 +171,14 @@ int main(int argc, char *argv[])
   cout << "Done: GridPlot parse time: " << parse_timer.get_float_cpu_time();
   cout << endl << endl;
 
-
-  // Build all the logplots from the vector of slog files.
+#endif
+  // Build all the logplots from the vector of alog files.
   //---------------------------------------------------------------------
   vector<vector<LogPlot> > logplots;
 
   parse_timer.reset();
   parse_timer.start();
-  cout << "Parsing slog files to build LogPlots..." << endl;
+  cout << "Parsing alog files to build LogPlots..." << endl;
 
   for(j=0; j<alog_files.size(); j++) {
     Populator_LogPlots pop_lp;
@@ -197,18 +205,20 @@ int main(int argc, char *argv[])
   cout << endl << endl;
 
 
-  // Build all the Polygons and Grids from the vector of non-slog files.
+  // Build all the Polygons and Grids from the vector of non-alog files.
   //---------------------------------------------------------------------
-  vector<XYPolygon> polygons;
-  vector<XYGrid>    searchgrids;
+  vector<string>  polygons;
+  vector<string>  searchgrids;
 
   for(j=0; j<non_log_files.size(); j++) {
-    vector<XYPolygon> pvector = readPolysFromFile(non_log_files[j]);
-    vector<XYGrid>    qvector = readGridsFromFile(non_log_files[j]);
-    for(k=0; k<pvector.size(); k++)
-      polygons.push_back(pvector[k]);
-    for(k=0; k<qvector.size(); k++)
-      searchgrids.push_back(qvector[k]);
+    vector<string> svector;
+    svector = readEntriesFromFile(non_log_files[j], "poly:polygon");
+    for(k=0; k<svector.size(); k++)
+      polygons.push_back(svector[k]);
+
+    svector = readEntriesFromFile(non_log_files[j], "grid:xygrid");
+    for(k=0; k<svector.size(); k++)
+      searchgrids.push_back(svector[k]);
   }
   
   // If we've gotten this far without errors, go ahead and create the GUI
@@ -217,13 +227,13 @@ int main(int argc, char *argv[])
 
   Fl::add_idle(idleProc);
   if(gui_size=="large")
-    gui = new REPLAY_GUI(1400, 1100, "OpRegion-Viewer");
+    gui = new REPLAY_GUI(1400, 1100, "logview");
   if(gui_size=="medium")
-    gui = new REPLAY_GUI(1190, 935, "OpRegion-Viewer");
+    gui = new REPLAY_GUI(1190, 935, "logview");
   if(gui_size=="small")
-    gui = new REPLAY_GUI(980, 770, "OpRegion-Viewer");
+    gui = new REPLAY_GUI(980, 770, "logview");
   if(gui_size=="xsmall")
-    gui = new REPLAY_GUI(770, 605, "OpRegion-Viewer");
+    gui = new REPLAY_GUI(770, 605, "logview");
 
   // Populate the GUI with the GridPlots built above
   for(j=0; j<gridplots.size(); j++)
@@ -244,14 +254,14 @@ int main(int argc, char *argv[])
 
   // Populate the GUI with the polygons built above
   for(j=0; j<polygons.size(); j++)
-    gui->addPoly(polygons[j]);
+    gui->np_viewer->setParam("poly", polygons[j]);
 
   // Populate the GUI with the search grids build above
   for(j=0; j<searchgrids.size(); j++)
-    gui->addGrid(searchgrids[j]);
+    gui->np_viewer->setParam("grid", searchgrids[j]);
 
   gui->updateXY();
-  gui->readTiff(tif_file);
+  gui->np_viewer->setParam("tiff_file", tif_file);
 
   // Enter the GUI event loop.
   return Fl::run();
@@ -268,6 +278,16 @@ void help_message()
   cout << "   At least one .alog file must be provided " << endl;
   cout << "   Non alog files will be scanned for polygons " << endl;
   cout << endl;
+}
+
+//--------------------------------------------------------
+// Procedure: version_message()
+
+void version_message()
+{
+  vector<string> svector = getReleaseInfo("logview");
+  for(int j=0; j<svector.size(); j++)
+    cout << svector[j] << endl;
 }
 
 

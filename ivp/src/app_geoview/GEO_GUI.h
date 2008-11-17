@@ -23,7 +23,6 @@ public:
   
   void updateXY();
   int  handle(int);
-  void addCircle(XYCircle);
 
 public:
   GeoViewer  *pviewer;
@@ -71,6 +70,9 @@ private:
 
   inline void cb_SnapVal_i(int);
   static void cb_SnapVal(Fl_Widget*, int);
+
+  inline void cb_SetColor_i(int);
+  static void cb_SetColor(Fl_Widget*, int);
 
   inline void cb_ReApplySnapVal_i();
   static void cb_ReApplySnapVal(Fl_Widget*);

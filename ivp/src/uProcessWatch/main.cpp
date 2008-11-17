@@ -20,20 +20,43 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
+#include <string>
 #include "MOOSLib.h"
 #include "MOOSGenLib.h"
 #include "ProcessWatch.h"
+#include "MBUtils.h"
+
+using namespace std;
 
 int main(int argc, char *argv[])
 {
-  char *sMissionFile = "ProcessWatch.moos";
-  
-  if(argc > 1) 
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    vector<string> svector = getReleaseInfo("uProcessWatch");
+    for(unsigned int j=0; j<svector.size(); j++)
+      cout << svector[j] << endl;    
+    return(0);
+  }
+
+  // Look for a request for help or usage information
+  if(scanArgs(argc, argv, "-h", "--help", "-help")) {
+    MOOSTrace("Usage: uProcessWatch moosfile.moos   \n");
+    return(0);
+  }
+
+  string sMissionFile = "ProcessWatch.moos";
+  string sMOOSName = "uProcessWatch";
+
+  switch(argc) {
+  case 3:
+    sMOOSName = argv[2];
+  case 2:
     sMissionFile = argv[1];
+  }
   
   ProcessWatch ProcessWatch;
   
-  ProcessWatch.Run("uProcessWatch", sMissionFile);
+  ProcessWatch.Run(sMOOSName.c_str(), sMissionFile.c_str());
   
   return(0);
 }

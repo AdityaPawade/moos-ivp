@@ -20,26 +20,49 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
+#include <string>
 #include "MOOSLib.h"
 #include "MOOSGenLib.h"
 #include "IMS_MOOSApp.h"
+#include "MBUtils.h"
+
+using namespace std;
 
 //--------------------------------------------------------
 // Procedure: main
 
 int main(int argc ,char * argv[])
 {
-  char *sMissionFile = "Example.moos";
+  string sMissionFile = "iMarineSim.moos";
+  string sMOOSName    = "iMarineSim";
+  bool   version_requested = false;
+
+  for(int i=0; i<argc; i++) {
+    string str = argv[i];
+    if((str=="-v") || (str=="--version") || (str=="-version"))
+      version_requested = true;
+  }
   
-  if(argc>1)
+  if(version_requested) {
+    vector<string> svector = getReleaseInfo("iMarineSim");
+    for(int i=0; i<svector.size(); i++)
+      cout << svector[i] << endl;
+    return(0);
+  }
+
+  switch(argc) {
+  case 3:
+    sMOOSName = argv[2];
+  case 2:
     sMissionFile = argv[1];
+  }
   
   IMS_Model *ims_model = new IMS_Model;
 
   IMS_MOOSApp marine_sim;
   marine_sim.setModel(ims_model);
 
-  marine_sim.Run("iMarineSim", sMissionFile);
+  marine_sim.Run(sMOOSName.c_str(), sMissionFile.c_str());
  
   return(0);
 }

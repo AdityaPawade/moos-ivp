@@ -71,7 +71,7 @@ vector<string> parseString(const string& string_str, char separator)
 
 //----------------------------------------------------------------
 // Procedure: parseString(string, string)
-//   Example: svector = parseString("apples $@$ pears $@$ banannas");
+//   Example: svector = parseString("apples $@$ pears $@$ banannas", "$@$");
 //            svector[0] = "apples "
 //            svector[1] = " pears "
 //            svector[2] = " bananas"
@@ -92,6 +92,52 @@ vector<string> parseString(const string& string_str,
 
 
 //----------------------------------------------------------------
+// Procedure: parseQuotedString(string, char)
+//   Example: svector = parseQuotedString(""apples,pears",banannas", ',');
+//            svector[0] = "apples,pears"
+//            svector[1] = "bananas"
+
+vector<string> parseQuotedString(const string& string_str, char separator)
+{
+  const char *str = string_str.c_str();
+
+  char *buff = new char[strlen(str)+1];
+
+  vector<string> rvector;
+
+  // First count the number of double-quotes. If not an even number, 
+  // return an empty vector.  
+  string::size_type len = string_str.length();
+  int quote_counter = 0;
+  for(string::size_type i=0; i<len; i++)
+    if(string_str.at(i) == '"')
+      quote_counter++;
+  
+  if((quote_counter % 2) != 0)
+    return(rvector);
+
+  bool even_quote = true;
+  while(str[0] != '\0') {    
+    string::size_type i=0;
+    while(((str[i]!=separator) || !even_quote) && (str[i]!='\0')) {
+      if(str[i]=='"')
+	even_quote = !even_quote;
+      i++;
+    }
+    strncpy(buff, str, i);
+    buff[i] = '\0';
+    string nstr = buff;
+
+    rvector.push_back(nstr);
+    str += i;
+    if(str[0]==separator)
+      str++;
+  }
+  delete [] buff;
+  return(rvector);
+}
+
+//----------------------------------------------------------------
 // Procedure: chompString(const string&, char)
 //   Example: svector = chompString("apples, pears, bananas", ',')
 //            svector[0] = "apples"
@@ -105,7 +151,7 @@ vector<string> chompString(const string& string_str, char separator)
 
   vector<string> rvector;
 
-  int i=0;
+  string::size_type i=0;
   while((str[i]!=separator)&&(str[i]!='\0'))
     i++;
 
@@ -135,7 +181,7 @@ vector<string> chompString(const string& string_str, char separator)
 
 string biteString(string& str, char separator)
 {
-  int i=0;
+  string::size_type i=0;
   while((str[i]!=separator)&&(str[i]!='\0'))
     i++;
 
@@ -157,10 +203,10 @@ string biteString(string& str, char separator)
 
 vector<string> sortStrings(vector<string> svector)
 {
-  int vsize = svector.size();
+  vector<string>::size_type vsize = svector.size();
   
-  for(int i=0; i<vsize; i++) {
-    for(int j=0; j<(vsize-1-i); j++) {
+  for(vector<string>::size_type i=0; i<vsize; i++) {
+    for(vector<string>::size_type j=0; j<(vsize-1-i); j++) {
       if(svector[j+1] < svector[j]) { // compare the two neighbors
 	string tmp = svector[j];
 	svector[j] = svector[j+1];
@@ -178,8 +224,8 @@ vector<string> sortStrings(vector<string> svector)
 vector<string> mergeVectors(vector<string> vector1, 
 			    vector<string> vector2)
 {
-  int vsize = vector2.size();
-  for(int i=0; i<vsize; i++)
+  vector<string>::size_type vsize = vector2.size();
+  for(vector<string>::size_type i=0; i<vsize; i++)
     vector1.push_back(vector2[i]);
   return(vector1);
 }
@@ -193,8 +239,8 @@ vector<string> removeDuplicates(const vector<string>& svector)
 {
   vector<string> rvector;
   
-  int vsize = svector.size();
-  for(int i=0; i<vsize; i++)
+  vector<string>::size_type vsize = svector.size();
+  for(vector<string>::size_type i=0; i<vsize; i++)
     if(!vectorContains(rvector, svector[i]))
       rvector.push_back(svector[i]);
   
@@ -207,8 +253,8 @@ vector<string> removeDuplicates(const vector<string>& svector)
 
 bool vectorContains(const vector<string>& svector, const string& str)
 {
-  int vsize = svector.size();
-  for(int i=0; i<vsize; i++)
+  vector<string>::size_type vsize = svector.size();
+  for(vector<string>::size_type i=0; i<vsize; i++)
     if(svector[i] == str)
       return(true);
   return(false);
@@ -286,8 +332,8 @@ string stripBlankEnds(const string& str)
 string tolower(const string& str)
 {
   string rstr = str;
-  int len = str.length();
-  for(int i=0; i<len; i++)
+  string::size_type len = str.length();
+  for(string::size_type i=0; i<len; i++)
     rstr[i] = tolower(str[i]);
   return(rstr);
 }
@@ -298,8 +344,8 @@ string tolower(const string& str)
 string toupper(const string& str)
 {
   string rstr = str;
-  int len = str.length();
-  for(int i=0; i<len; i++)
+  string::size_type len = str.length();
+  for(string::size_type i=0; i<len; i++)
     rstr[i] = toupper(str[i]);
   return(rstr);
 }
@@ -307,34 +353,34 @@ string toupper(const string& str)
 //----------------------------------------------------------------
 // Procedure: truncString
 
-string truncString(const string& str, int sz, string style)
+string truncString(const string& str, std::string::size_type sz, string style)
 {
   if(sz < 0)
     sz = 0;
 
-  int len  = str.length();
+  string::size_type len  = str.length();
   if(len <= sz)
     return(str);
 
   char *buff = new char[sz+1]; 
 
   if((style == "middle") && (sz >= 4)) {
-    int front_amt = sz/2;
-    int back_amt  = (sz-2) - front_amt;
-    for(int i=0; i<front_amt; i++)
+    string::size_type front_amt = sz/2;
+    string::size_type back_amt  = (sz-2) - front_amt;
+    for(string::size_type i=0; i<front_amt; i++)
       buff[i] = str[i];
     buff[front_amt]   = '.';
     buff[front_amt+1] = '.';
     
-    for(int i=0; i<back_amt; i++) {
-      int leftix  = (front_amt+2) + i;
-      int rightix = (len - back_amt) + i;
+    for(string::size_type i=0; i<back_amt; i++) {
+      string::size_type leftix  = (front_amt+2) + i;
+      string::size_type rightix = (len - back_amt) + i;
       buff[leftix] = str[rightix];
     }
     buff[sz] = '\0';
   }
   else { // if style is basic truncation
-    for(int i=0; i<sz; i++)
+    for(string::size_type i=0; i<sz; i++)
       buff[i] = str[i];
     buff[sz] = '\0';
   }
@@ -365,7 +411,7 @@ string intToString(int val)
 string floatToString(float val, int digits)
 {
   char buffAUX[10] = "%.5f\0";
-  if((digits>0)&&(digits<7))
+  if((digits>=0)&&(digits<9))
     buffAUX[2] = digits+48;
 
   char buff[100];
@@ -378,7 +424,7 @@ string floatToString(float val, int digits)
 string doubleToString(double val, int digits)
 {
   char buffAUX[10] = "%.5f\0";
-  if((digits>0)&&(digits<7))
+  if((digits>=0)&&(digits<=9))
     buffAUX[2] = digits+48;
 
   char buff[100];
@@ -389,6 +435,25 @@ string doubleToString(double val, int digits)
 }
 
 //----------------------------------------------------------------
+// Procedure: intToCommaString
+
+string intToCommaString(int ival)
+{
+  string str = intToString(ival);
+  string new_str;
+  int len = str.length();
+
+  for(int i=0; i<len; i++) {
+    new_str += str.at(i);
+    if((((len-(i+1))%3)==0) && (i!=len-1))
+      new_str += ',';
+  }
+
+  return(new_str);
+}
+
+
+//----------------------------------------------------------------
 // Procedure: dstringCompact
 //      Note: Convert 6.43000 to 6.43
 //                    6.00000 to 6
@@ -396,13 +461,15 @@ string doubleToString(double val, int digits)
 
 string dstringCompact(const string& str)
 {
-  if(str=="0") return("123456");
+  //if(str=="0")     return("123456");
+  if(str=="0") 
+    return("0");
 
   bool has_decimal = false;
 
-  int i, ssize = str.size();
+  string::size_type ssize = str.size();
 
-  for(i=0; i<ssize; i++)
+  for(string::size_type i=0; i<ssize; i++)
     if(str[i] == '.')
       has_decimal = true;
   
@@ -413,13 +480,13 @@ string dstringCompact(const string& str)
   strcpy(buff, str.c_str());
   buff[ssize] = '\0';
 
-  for(int j=ssize-1; j>=0; j--) {
+  for(string::size_type j=ssize-1; j>=0; j--) {
     if(buff[j] == '0')
       buff[j] = '\0';
     else {
       if(buff[j] == '.')
 	buff[j] = '\0';
-      j = -1;
+      break;
     }
   }
 
@@ -436,7 +503,7 @@ string dstringCompact(const string& str)
 
 string compactConsecutive(const string& str, char dchar)
 {
-  int len = strlen(str.c_str());
+  string::size_type len = strlen(str.c_str());
 
   if(len==0)
     return("");
@@ -445,8 +512,8 @@ string compactConsecutive(const string& str, char dchar)
 
   buffer[0] = str[0];
 
-  int index = 1;
-  for(int i=1; i<len; i++) {
+  string::size_type index = 1;
+  for(string::size_type i=1; i<len; i++) {
     if((str[i] != dchar) || (str[i-1] != dchar)) {
       buffer[index] = str[i]; 
       index++;
@@ -466,8 +533,8 @@ string compactConsecutive(const string& str, char dchar)
 string findReplace(const string& str, char fchar, char rchar)
 {
   string rstr = str;
-  int str_size = str.size();
-  for(int i=0; i<str_size; i++)
+  string::size_type str_size = str.size();
+  for(string::size_type i=0; i<str_size; i++)
     if(str[i] == fchar)
       rstr[i] = rchar;
   
@@ -481,10 +548,10 @@ string findReplace(const string& str, char fchar, char rchar)
 //            length given by target_size. If front is true, pad on
 //            to the front of the string. To the end otherwise. 
 
-string padString(const string& str, int target_size, bool front)
+string padString(const string& str, std::string::size_type target_size, bool front)
 {
   string rstr  = str;
-  int str_size = str.size();
+  string::size_type str_size = str.size();
   
   while(str_size < target_size) {
     if(front)
@@ -505,7 +572,7 @@ string padString(const string& str, int target_size, bool front)
 
 string findReplace(const string& str, const string& fstr, const string& rstr)
 {
-  unsigned int posn = 0;
+  string::size_type posn = 0;
 
   string newstr = str;
   while(posn != string::npos) {
@@ -529,11 +596,11 @@ string findReplace(const string& str, const string& fstr, const string& rstr)
 
 string stripComment(const string& str, const string& cstr)
 {
-  unsigned int posn = str.find(cstr, 0);
+  string::size_type posn = str.find(cstr, 0);
   if(posn == string::npos)
     return(str);
 
-  int  ssize = str.size();
+  string::size_type ssize = str.size();
   char *buff = new char[ssize+1];
   strcpy(buff, str.c_str());
   buff[ssize] = '\0';
@@ -550,7 +617,7 @@ string stripComment(const string& str, const string& cstr)
 
 bool strContains(const string& str, const string& qstr)
 {
-  unsigned int posn = str.find(qstr, 0);
+  string::size_type posn = str.find(qstr, 0);
   if(posn == string::npos)
     return(false);
   else
@@ -580,7 +647,7 @@ bool tokParse(const string& str, const string& left,
 {
   rstr = "error";
   vector<string> svector1 = parseString(str, gsep);
-  for(unsigned int i=0; i<svector1.size(); i++) {
+  for(vector<string>::size_type i=0; i<svector1.size(); i++) {
     vector<string> svector2 = parseString(svector1[i], lsep);
     if(svector2.size() != 2)
       return(false);
@@ -606,7 +673,7 @@ string tokStringParse(const string& str, const string& left,
 		      char gsep, char lsep)
 {
   vector<string> svector1 = parseString(str, gsep);
-  for(unsigned int i=0; i<svector1.size(); i++) {
+  for(vector<string>::size_type i=0; i<svector1.size(); i++) {
     vector<string> svector2 = parseString(svector1[i], lsep);
     if(svector2.size() != 2)
       return("");
@@ -630,7 +697,7 @@ double tokDoubleParse(const string& str, const string& left,
 		      char gsep, char lsep)
 {
   vector<string> svector1 = parseString(str, gsep);
-  for(unsigned int i=0; i<svector1.size(); i++) {
+  for(vector<string>::size_type i=0; i<svector1.size(); i++) {
     vector<string> svector2 = parseString(svector1[i], lsep);
     if(svector2.size() != 2)
       return(0);
@@ -674,12 +741,12 @@ bool isNumber(const string& str, bool blanks_allowed)
 
   const char *buff = newstr.c_str();
 
-  int  len      = newstr.length();
+  string::size_type  len      = newstr.length();
   int  digi_cnt = 0;
   int  deci_cnt = 0;
   bool ok       = true;
 
-  for(int i=0; (i<len)&&ok; i++) {
+  for(string::size_type i=0; (i<len)&&ok; i++) {
     if((buff[i] >= 48) && (buff[i] <= 59))
       digi_cnt++;
     else if(buff[i] == '.') {
@@ -720,7 +787,7 @@ bool isQuoted(const string& str)
 string stripQuotes(const string& given_str)
 {
   string str = stripBlankEnds(given_str);
-  int len = str.length();
+  string::size_type len = str.length();
   if(len < 2)
     return(given_str);
 
@@ -823,6 +890,37 @@ int getArg(int argc, char **argv, int pos,
 }
 
 //----------------------------------------------------------------
+// Procedure: scanArgs
+//     Note1: Searches the array of strings (argv) looking for a 
+//            match to the given string (str). 
+
+bool scanArgs(int argc, char **argv, const char* str1, 
+	      const char *str2, const char *str3)
+{
+  for(int i=0; i<argc; i++) {
+    bool match1 = !strncmp(str1, argv[i], strlen(argv[i]));
+    bool match2 = !strncmp(str1, argv[i], strlen(str1));
+    if(match1 && match2)
+      return(true);
+
+    if(str2) {
+      match1 = !strncmp(str2, argv[i], strlen(argv[i]));
+      match2 = !strncmp(str2, argv[i], strlen(str2));
+      if(match1 && match2)
+	return(true);   
+    }
+
+    if(str3) {
+      match1 = !strncmp(str3, argv[i], strlen(argv[i]));
+      match2 = !strncmp(str3, argv[i], strlen(str2));
+      if(match1 && match2)
+	return(true);   
+    }
+  }
+  return(false);
+}
+
+//----------------------------------------------------------------
 // Procedure: validateArgs
 //     Note1: Ensures that each argument in argv is legal, has the
 //            correct number of arguments, and is not duplicated.
@@ -835,7 +933,7 @@ int validateArgs(int argc, char *argv[], string ms)
 {
   bool NOERR=0;
   vector<string> svector = parseString(ms, ' ');
-  int vsize = svector.size();
+  vector<string>::size_type vsize = svector.size();
   
   for(int i=0; i<argc; i++) {              // Go through each arg
     if(argv[i][0] == '-') {                // If begins with dash
@@ -846,7 +944,7 @@ int validateArgs(int argc, char *argv[], string ms)
       bool matched = false; 
       bool okCount = false;
       string arg = argv[i];
-      for(int j=0; j<vsize; j++) {
+      for(vector<string>::size_type j=0; j<vsize; j++) {
 	string temp = svector[j];
 	if(temp != "") {
 	  vector<string> svector2 = parseString(temp, ':');
@@ -913,6 +1011,30 @@ float snapDownToStep(float gfloat, float step)
   return(fval);
 }
   
+//-------------------------------------------------------------
+// Procedure: setBooleanOnString
+//      Note: This function is designed to set the given boolean value
+//            based on its existing value and the contents of the str.
+//      Note: The case_tolow argument is true by default. By giving 
+//            the caller this option, some efficiency can be gained if
+//            the caller knows that the str argument has already been
+//            converted to lower case.
+
+bool setBooleanOnString(bool& boolval, string str, bool case_tolow)
+{
+  if(case_tolow)
+    str = tolower(str);
+  if(str == "toggle")
+    boolval = !boolval;
+  else if((str == "on") || (str == "true"))
+    boolval = true;
+  else if((str == "off") || (str == "false"))
+    boolval = false;
+  else
+    return(false);
+  return(true);
+}
+
 //----------------------------------------------------------------
 // Procedure: okFileToWrite
 //     Note1: Takes a given filename, breaks it into the preceding
@@ -925,7 +1047,7 @@ bool okFileToWrite(string file)
 {
   string dir = "/";
   vector<string> svector = parseString(file, '/');
-  for(int i=0; i<(int)svector.size()-1; i++) {
+  for(vector<string>::size_type i=0; i<svector.size()-1; i++) {
     string temp = svector[i];
     dir += temp;
     dir += "/";
@@ -970,6 +1092,23 @@ void millipause(int milliseconds)
 #endif
 }
 
+//----------------------------------------------------------------
+// Procedure: getReleaseInfo
+// 
+
+vector<string> getReleaseInfo(const string& app)
+{
+  string pad = padString("", (16-app.length()));
+  vector<string> v;
+  v.push_back("************************************************************************");
+  v.push_back("* " + app + "  - Part of the MOOS-IvP Release Bundle - VERSION 3.1" + pad + "*");
+  v.push_back("* Michael Benjamin (NUWC/MIT), John Leonard (MIT), www.moosivp.org     *");
+  v.push_back("* Copyright (C) 2008 Free Software Foundation, Inc.                    *");
+  v.push_back("* This is free software; see the source for copying conditions.        *");
+  v.push_back("************************************************************************");
+  v.push_back("");
+  return(v);
+}
 
 
 

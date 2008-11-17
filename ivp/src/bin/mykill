@@ -25,6 +25,9 @@ killall iMicroModem pRouter pFramer pMessageSim  \
 	iModemSim pFunctionSender uFunctionViewer uFunctionVis
 
 killall pSensorSim pArtifactMapper pNoiseSim uNafconSplitter \
-        pBlast pSweepLines pNSWCPC pXRelay
+        pBlast pSweepLines pNSWCPC pXRelay geoview logview \
+        pAcommsHandler pCTDCodec pBTRCodec iDAS iOEX pGateway \
+        pAcommsPoller pArraySim pSimpleAcousticSim \
+        pMultiTargetSim pMultiAcousticSim
 
 echo Done - Killed all MOOS-Related Processes.....

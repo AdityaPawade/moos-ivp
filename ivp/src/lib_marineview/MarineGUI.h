@@ -36,21 +36,15 @@ public:
 
   static Fl_Menu_Item menu_[];
 
-  void readTiff(std::string);
-  void readTiffB(std::string);
   int  handle(int);
-  void addGrid(XYGrid);
-  void addPoly(XYPolygon);
-  void addCircle(XYCircle);
   virtual void updateXY() {};
+
+  void augmentMenu();
 
 public:
   Fl_Menu_Bar  *mbar;
   MarineViewer *cmviewer;
 
-protected:
-  std::vector<std::string> grid_labels;
- 
 protected:
   inline void cb_Zoom_i(int);
   static void cb_Zoom(Fl_Widget*, int);
@@ -75,6 +69,9 @@ protected:
 
   inline void cb_HashShade_i(int);
   static void cb_HashShade(Fl_Widget*, int);
+
+  inline void cb_MG_SetGeoAttr_i(int);
+  static void cb_MG_SetGeoAttr(Fl_Widget*, int);
 
   inline void cb_ToggleDatum_i();
   static void cb_ToggleDatum(Fl_Widget*);

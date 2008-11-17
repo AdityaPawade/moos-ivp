@@ -20,27 +20,37 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
+#include <string>
 #include "EchoVar.h"
+#include "MBUtils.h"
+
+using namespace std;
 
 int main(int argc, char *argv[])
 {
-  char *sMissionFile = "pEchoVar.moos";
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    vector<string> svector = getReleaseInfo("pEchoVar");
+    for(unsigned int j=0; j<svector.size(); j++)
+      cout << svector[j] << endl;    
+    return(0);
+  }
   
-  if(argc > 1)
+  string sMissionFile = "Mission.moos";
+  string sMOOSName    = "pEchoVar";
+
+  switch(argc) {
+  case 3:
+    sMOOSName = argv[2];
+  case 2:
     sMissionFile = argv[1];
+  }
   
   EchoVar transponder;
   
-  transponder.Run("pEchoVar", sMissionFile);
+  transponder.Run(sMOOSName.c_str(), sMissionFile.c_str());
 
   return(0);
 }
-
-
-
-
-
-
-
 
 

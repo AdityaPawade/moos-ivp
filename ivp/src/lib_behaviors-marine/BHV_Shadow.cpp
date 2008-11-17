@@ -72,14 +72,14 @@ bool BHV_Shadow::setParam(string g_param, string g_val)
     m_max_range = atof(g_val.c_str());
     return(true);
   }  
-  if(g_param == "hdg_peakwidth") {
+  if((g_param == "hdg_peakwidth") || (g_param == "heading_peakwidth")) {
     double dval = atof(g_val.c_str());
     if((dval < 0) || (!isNumber(g_val)))
       return(false);
     m_hdg_peakwidth = dval;
     return(true);
   }
-  if(g_param == "hdg_basewidth") {
+  if((g_param == "hdg_basewidth") || (g_param == "heading_basewidth")) {
     double dval = atof(g_val.c_str());
     if((dval < 0) || (!isNumber(g_val)))
       return(false);
@@ -87,14 +87,14 @@ bool BHV_Shadow::setParam(string g_param, string g_val)
     return(true);
   }
 
-  if(g_param == "spd_peakwidth") {
+  if((g_param == "spd_peakwidth") || (g_param == "speed_peakwidth")) {
     double dval = atof(g_val.c_str());
     if((dval < 0) || (!isNumber(g_val)))
       return(false);
     m_spd_peakwidth = dval;
     return(true);
   }
-  if(g_param == "spd_basewidth") {
+  if((g_param == "spd_basewidth") || (g_param == "speed_basewidth")) {
     double dval = atof(g_val.c_str());
     if((dval < 0) || (!isNumber(g_val)))
       return(false);
@@ -133,11 +133,11 @@ IvPFunction *BHV_Shadow::onRunState()
   // bother to create the objective function.
   double relevance = getRelevance();
 
-  postMessage("SHADOW_CONTACT_X", m_cnx);
-  postMessage("SHADOW_CONTACT_Y", m_cny);
-  postMessage("SHADOW_CONTACT_SPEED", m_cnv);
-  postMessage("SHADOW_CONTACT_HEADING", m_cnh);
-  postMessage("SHADOW_RELEVANCE", relevance);
+  postIntMessage("SHADOW_CONTACT_X", m_cnx);
+  postIntMessage("SHADOW_CONTACT_Y", m_cny);
+  postIntMessage("SHADOW_CONTACT_SPEED", m_cnv);
+  postIntMessage("SHADOW_CONTACT_HEADING", m_cnh);
+  postIntMessage("SHADOW_RELEVANCE", relevance);
   
 
   if(relevance <= 0)
@@ -179,8 +179,8 @@ IvPFunction *BHV_Shadow::onRunState()
     }
   
 #if 0
-    postMessage("SHADOW_MIN_WT", ipf->getPDMap()->getMinWT());
-    postMessage("SHADOW_MAX_WT", ipf->getPDMap()->getMaxWT());
+    postIntMessage("SHADOW_MIN_WT", ipf->getPDMap()->getMinWT());
+    postIntMessage("SHADOW_MAX_WT", ipf->getPDMap()->getMaxWT());
 #endif
 
   return(ipf);

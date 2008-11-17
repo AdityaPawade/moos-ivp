@@ -20,16 +20,16 @@
 /* Boston, MA 02111-1307, USA.                                   */
 /*****************************************************************/
 
-float g_triangleShape[]=
+double g_triangleBody[]=
 {
-  15.0,  0.0, 
-   0.0, 45.0,
- -15.0,  0.0, 
-  15.0,  0.0
+  8.0,  0.0, 
+  0.0, 16.0,
+ -8.0,  0.0, 
+  8.0,  0.0
 };
 
 double       g_triangleCtrX =  0.0;
-double       g_triangleCtrY = 22.5;
-unsigned int g_triangleSize = 4;
+double       g_triangleCtrY =  8.0;
+unsigned int g_triangleBodySize = 4;
 
 

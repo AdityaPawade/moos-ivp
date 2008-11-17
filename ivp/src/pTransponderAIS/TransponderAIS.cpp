@@ -726,23 +726,22 @@ void TransponderAIS::postContactList()
 // Purpose: builds the string used for AIS_REPORT
 // tes 11.19.07
 
-string TransponderAIS::assembleAIS(string name, string type, string db_time, string utc_time,
-                                   string x, string y, string lat, string lon, string spd,
+string TransponderAIS::assembleAIS(string name, string type, string db_time, 
+				   string utc_time, string x, string y, 
+				   string lat, string lon, string spd,
                                    string hdg, string depth)
 {
-
-    string summary = "NAME=" + name;
-    summary += ",TYPE=" + type;
-    summary += ",MOOSDB_TIME=" + db_time;
-    summary += ",UTC_TIME=" + utc_time;
-    summary += ",X="   + x;
-    summary += ",Y="   + y;
-    summary += ",LAT=" + lat;
-    summary += ",LON=" + lon;
-    summary += ",SPD=" + spd;
-    summary += ",HDG=" + hdg;
-    summary += ",DEPTH=" + depth;
-    
-    return summary;
-
+  string summary = "NAME=" + name;
+  summary += ",TYPE=" + type;
+  summary += ",MOOSDB_TIME=" + db_time;
+  summary += ",UTC_TIME=" + utc_time;
+  summary += ",X="   + x;
+  summary += ",Y="   + y;
+  summary += ",LAT=" + lat;
+  summary += ",LON=" + lon;
+  summary += ",SPD=" + spd;
+  summary += ",HDG=" + hdg;
+  summary += ",DEPTH=" + depth;
+  
+  return summary;
 }

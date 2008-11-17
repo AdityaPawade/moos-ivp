@@ -30,10 +30,13 @@
 
 using namespace std;
 
+extern bool MOOSAPP_OnConnect(void*);
+extern bool MOOSAPP_OnDisconnect(void*);
+
 //------------------------------------------------------------
 // Procedure: Constructor
 
-XMS::XMS()
+XMS::XMS(string server_host, long int server_port)
 {    
   m_display_source    = false;
   m_display_time      = false;
@@ -48,12 +51,52 @@ XMS::XMS()
   
   m_display_virgins   = true;
   m_display_empty_strings = true;
-  m_db_uptime         = 0;
+  m_db_start_time     = 0;
   
-  m_filter = "";
+  m_filter            = "";
   
-  m_display_all = false;
-  m_last_all_refresh = 0;
+  m_display_all       = false;
+  m_last_all_refresh  = 0;
+  m_paused            = true;
+
+  m_sServerHost       = server_host; 
+  m_lServerPort       = server_port;
+
+  m_configure_comms_locally = false;
+}
+
+//------------------------------------------------------------
+//  Proc: ConfigureComms
+//  Note: Overload MOOSApp::ConfigureComms implementation which would
+//        have grabbed port/host info from the .moos file instead
+
+bool XMS::ConfigureComms()
+{
+  cout << "XMS::ConfigureComms:" << endl;
+  cout << "  m_sServerHost: " << m_sServerHost << endl;
+  cout << "  m_lServErport: " << m_lServerPort << endl;
+
+  if(!m_configure_comms_locally) 
+    return(CMOOSApp::ConfigureComms());
+
+  //cout << "**Doing things locally. " << endl;
+
+  //register a callback for On Connect
+  m_Comms.SetOnConnectCallBack(MOOSAPP_OnConnect, this);
+  
+  //and one for the disconnect callback
+  m_Comms.SetOnDisconnectCallBack(MOOSAPP_OnDisconnect, this);
+  
+  //start the comms client....
+  if(m_sMOOSName.empty())
+    m_sMOOSName = m_sAppName;
+  
+  m_nCommsFreq = 10;
+
+  m_Comms.Run(m_sServerHost.c_str(),  m_lServerPort,
+	      m_sMOOSName.c_str(),    m_nCommsFreq);
+  
+  return(true);
 }
 
 //------------------------------------------------------------
@@ -61,13 +104,16 @@ XMS::XMS()
 
 bool XMS::OnNewMail(MOOSMSG_LIST &NewMail)
 {    
-  // First scan the mail for the DB_UPTIME message to get an 
-  // up-to-date value of DB uptime *before* handling other vars
   MOOSMSG_LIST::reverse_iterator p;
-  for(p = NewMail.rbegin(); p != NewMail.rend(); p++) {
-    CMOOSMsg &msg = *p;
-    if(msg.m_sKey == "DB_UPTIME")
-      m_db_uptime = msg.m_dfVal;
+
+  // First, if m_db_start_time is not set, scan the mail for the
+  // DB_UPTIME mail from the MOOSDB and set. ONCE.
+  if(m_db_start_time == 0) {
+    for(p = NewMail.rbegin(); p != NewMail.rend(); p++) {
+      CMOOSMsg &msg = *p;
+      if(msg.m_sKey == "DB_UPTIME") 
+	m_db_start_time = MOOSTime() - msg.m_dfVal;
+    }
   }
   
   // Update the values of all variables we have registered for.  
@@ -222,6 +268,7 @@ void XMS::handleCommand(char c)
     m_paused = false;
     break;
   case ' ':
+    m_paused = true;
   case 'u':
   case 'U':
     m_update_requested = true;
@@ -265,7 +312,7 @@ void XMS::handleCommand(char c)
     
     // turn show all variables mode off
   case 'a':
-    if (m_display_all) {
+    if(m_display_all) {
       m_display_all = false;
       m_update_requested = true;
       
@@ -523,7 +570,7 @@ void XMS::printReport()
 void XMS::updateVariable(CMOOSMsg &msg)
 {
   string varname = msg.m_sKey;  
-  double vtime   = m_db_uptime;
+  double vtime   = msg.GetTime() - m_db_start_time;
 
   //double vtime = msg.GetTime() - GetAppStartTime();
   //vtime = MOOSTime() - GetAppStartTime();;

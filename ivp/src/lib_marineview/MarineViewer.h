@@ -23,7 +23,6 @@
 #ifndef COMMON_MARINE_VIEWER_HEADER
 #define COMMON_MARINE_VIEWER_HEADER
 
-#include <map>
 #include <string>
 #include <vector>
 #include "FL/Fl.H"
@@ -37,6 +36,10 @@
 #include "XYCircle.h"
 #include "XYHexagon.h"
 #include "ObjectPose.h"
+#include "VMarkerSet.h"
+#include "OpAreaSpec.h"
+#include "MOOSGeodesy.h"
+#include "VPlug_GeoShapes.h"
 
 class MarineViewer : public Fl_Gl_Window
 {
@@ -46,108 +49,121 @@ class MarineViewer : public Fl_Gl_Window
   
   // Pure virtuals that need to be defined
   virtual void  draw();
-  virtual int   handle(int event)
-    {return(Fl_Gl_Window::handle(event));};
+  virtual int   handle(int event) {return(Fl_Gl_Window::handle(event));};
 
-  virtual void setGlobalIndex(unsigned int i) {m_global_ix = i;};
+  virtual bool setParam(std::string p, std::string v="");
+  virtual bool setParam(std::string p, double v);
 
-  virtual bool setParam(std::string p, std::string v) = 0;
-  virtual bool setParam(std::string p, float v)       = 0;
+  virtual void mutexLock() {};   
+  virtual void mutexUnLock() {}; 
 
-  bool  setCommonParam(std::string, std::string);
-  bool  setCommonParam(std::string, float);
+  bool   initGeodesy(double, double);
+  bool   initGeodesy(const std::string&);
 
-public:
-  bool   readTiff(std::string);
-  bool   readTiffB(std::string);
   bool   setTexture();
 
-  void   addPoly(const XYPolygon&);
-  void   addGrid(const XYGrid&);
-  void   addCircle(const XYCircle&);
-  void   addHexagon(const XYHexagon&);
-  void   addSegList(const XYSegList&);
-  void   setColorMapping(const std::string&);
-  void   updateGrid(std::string);
   double getHashDelta();
-  float  getCrossHairMeters(char);
+  double getCrossHairMeters(char);
 
 protected:
-  float  img2view(char, float);
-  float  view2img(char, float);
-  float  meters2img(char, float);
-  float  img2meters(char, float);
-  void   drawCommon();
+  bool   readTiff(std::string);
+  bool   readTiffB(std::string);
+
   void   drawTiff();
+  double img2view(char, double);
+  double view2img(char, double);
+  double meters2img(char, double);
+  double img2meters(char, double);
+
   void   drawHash();
   void   drawCrossHairs();
-  void   drawPolys();
-  void   drawSegment(float, float, float, float, float, float, float);
-  void   drawPoly(const XYPolygon&, 
-		  bool filled=false, bool dashed=false,
-		  float=0.40, float=0.40, float=0.40,   
-		  float=0.20, float=0.80, float=0.20,   
-		  float=0.00, float=0.00, float=0.00,   
-		  float=0.00, float=0.00, float=0.00,   
-		  float=0.00, float=0.00, float=0.00);
+  void   drawSegment(double, double, double, double, double, double, double);
 
-  void   drawDatum();
-  void   drawHexagons();
-  void   drawSegLists();
-  void   drawSegList(int ix);
-  void   drawGrids();
-  void   drawGrid(const XYGrid&);
-  void   drawCircles();
-  void   drawCircle(int ix);
-  void   drawGLPoly(float *points, int numPoints, float r, float g, 
-		    float b, float thickness=0, float scale=1);
-  void   drawCommonVehicle(std::string vname, ObjectPose, double r, 
-			   double g, double b, std::string body, int line=0);
-  void   drawCommonMarker(double x, double y, double scale, std::string);
+  void   drawMarkers();
+  void   drawOpArea();
+
+  void   drawGLPoly(double *points, int numPoints, 
+		    const std::vector<double>& fill_color,
+		    double thickness=0, double scale=1);
+  void   drawCommonVehicle(const std::string& vname, 
+			   const ObjectPose&, 
+			   const std::vector<double>& body_color,
+			   const std::vector<double>& vname_color,
+			   const std::string& body, 
+			   double shape_scale, bool vname_draw, int line=0);
+  void   drawCommonMarker(double x, double y, double scale, 
+			  const std::string& mtype, 
+			  const std::string& label, 
+			  const std::vector<double>& label_color, 
+			  const std::vector<std::vector<double> >& color_vectors);
+
+
+  void  drawPolygons();
+  void  drawPolygon(const XYPolygon&, bool filled, bool dashed,
+		    double line_width, double vertex_size,
+		    const std::vector<double>& edge_color,
+		    const std::vector<double>& fill_color,
+		    const std::vector<double>& vert_color,
+		    const std::vector<double>& labl_color);
   
+  void  drawSegLists();
+  void  drawSegList(const XYSegList&, double lwid, double vsize, bool zdash,
+		    const std::vector<double>& edge_color,
+		    const std::vector<double>& vert_color,
+		    const std::vector<double>& labl_color);
+
+  void  drawGrids();
+  void  drawGrid(const XYGrid&);
+
+  void  drawCircles();
+  void  drawCircle(const XYCircle&, int pts, bool filled, 
+		   const std::vector<double>& edge_color,
+		   const std::vector<double>& fill_color,
+		   const std::vector<double>& vert_color,
+		   const std::vector<double>& labl_color);
+
+  void  drawPoints();
+  void  drawPoint(const XYPoint&, double vertex_size,
+		  const std::vector<double>& vert_color,
+		  const std::vector<double>& labl_color);
+
+  void  drawPointList(const std::vector<double>& xvect,
+		      const std::vector<double>& yvect, double vsize,
+		      const std::vector<double>& vert_color, 
+		      bool point_edges_viewable=false);
+
+  void  drawHexagons();
+
+
 protected:
-  BackImg    m_back_img;
-  BackImg    m_back_img_b;
-  bool       m_back_img_b_ok;
-  bool       m_back_img_b_on;
-  bool       m_back_img_mod;
+  BackImg   m_back_img;
+  BackImg   m_back_img_b;
+  bool      m_back_img_b_ok;
+  bool      m_back_img_b_on;
+  bool      m_back_img_mod;
 
-  float      m_zoom;
-  float      m_vshift_x; 
-  float      m_vshift_y; 
-  float      m_x_origin;
-  float      m_y_origin;
-  float      m_shape_scale;
-  float      m_hash_shade;
-  float      m_hash_delta;
-  float      m_fill_shade;
-  int        m_texture_set;
-  GLuint*    m_textures;
+  double    m_zoom;
+  double    m_vshift_x; 
+  double    m_vshift_y; 
+  double    m_x_origin;
+  double    m_y_origin;
+  bool      m_texture_init;
+  GLuint*   m_textures;
+  int       m_texture_set;
+  bool      m_tiff_offon;
 
-  bool       m_trails;
-  bool       m_trail_connect;
-  int        m_trail_color;
-  int        m_trail_gap;
-  float      m_trail_size;
-  bool       m_cross_offon;
-  bool       m_poly_offon;
-  bool       m_grid_offon;
-  bool       m_tiff_offon;
-  bool       m_hash_offon;
-  bool       m_draw_vname;
-  int        m_vname_color;
-  bool       m_draw_datum;
-  float      m_size_datum;
-  unsigned int m_global_ix;
+  double    m_hash_shade;
+  double    m_hash_delta;
+  double    m_fill_shade;
+  bool      m_cross_offon;
+  bool      m_hash_offon;
 
-  std::vector<XYCircle>  m_circ;
-  std::vector<XYPolygon> m_poly;
-  std::vector<XYGrid>    m_grid;
-  std::vector<XYHexagon> m_hexa;
-  std::vector<XYSegList> m_segl;
+  VMarkerSet       m_vmarkers;
+  OpAreaSpec       m_op_area;
+  VPlug_GeoShapes  m_geoshapes;
+  CMOOSGeodesy     m_geodesy;
 
-  std::map<std::string, std::vector<double> >  m_color_map;
-
+  std::string m_param_warning;
 };
 
 #endif 

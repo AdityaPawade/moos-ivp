@@ -68,6 +68,18 @@ HelmIvP::HelmIvP()
   m_ok_skew       = 360; 
   m_skews_matter  = true;
   m_warning_count = 0;
+
+  // The refresh vars handle the occasional clearing of the m_outgoing
+  // maps. These maps will be cleared when MOOS mail is received for the
+  // variable given by m_refresh_var. The user can set minimum interval
+  // between refreshes so the helm retains some control over refresh rate.
+  // Motivated by the need for a viewer handling geometric postings from
+  // behaviors. The new arrival of a viewer into the MOOS community can 
+  // request a refresh and then get new geometry mail to process.
+  m_refresh_var      = "HELM_MAP_CLEAR";
+  m_refresh_interval = 10.0;
+  m_refresh_pending  = false;
+  m_refresh_time     = 0;
 }
 
 //--------------------------------------------------------------------
@@ -105,6 +117,11 @@ void HelmIvP::cleanup()
 
 bool HelmIvP::OnNewMail(MOOSMSG_LIST &NewMail)
 {
+  // The curr_time is set in *both* the OnNewMail and Iterate functions.
+  // In the OnNewMail function so the most up-to-date time is available
+  // when processing mail.
+  // In the Iterate method to ensure behaviors are not iterated with an
+  // un-initialized timestamp on startup, and in case there is no Mail 
   double curr_time = MOOSTime();
   m_info_buffer->setCurrTime(curr_time);
 
@@ -149,6 +166,9 @@ bool HelmIvP::OnNewMail(MOOSMSG_LIST &NewMail)
 	MOOSTrace("\n");
 	MOOSDebugWrite("pHelmIvP Has Been Re-Started");
       }
+      else if(msg.m_sKey == m_refresh_var) {
+	m_refresh_pending = true;
+      }
       else
 	updateInfoBuffer(msg);
     }
@@ -174,7 +194,13 @@ bool HelmIvP::Iterate()
   if(!m_has_control)
     return(false);
 
+  // The curr_time is set in *both* the OnNewMail and Iterate functions.
+  // In the OnNewMail function so the most up-to-date time is available
+  // when processing mail.
+  // In the Iterate method to ensure behaviors are not iterated with an
+  // un-initialized timestamp on startup, and in case there is no Mail 
   double curr_time = MOOSTime();
+  m_info_buffer->setCurrTime(curr_time);
 
   HelmReport helm_report;
   helm_report = m_hengine->determineNextDecision(m_bhv_set, curr_time);
@@ -190,6 +216,16 @@ bool HelmIvP::Iterate()
       MOOSTrace("%s\n", svector[i].c_str());
   }
   
+  // Check if refresh conditions are met - potentiall clear outgoing maps.
+  // This will result in all behavior postings being posted to the MOOSDB
+  // on the current iteration.
+  if(m_refresh_pending && ((curr_time-m_refresh_time) > m_refresh_interval)) {
+    m_outgoing_strings.clear();
+    m_outgoing_doubles.clear();
+    m_refresh_time = curr_time;
+    m_refresh_pending = false;
+  }
+
   registerNewVariables();
   postBehaviorMessages();
   postDefaultVariables();
@@ -296,19 +332,35 @@ void HelmIvP::postBehaviorMessages()
       string var   = msg.get_var();
       string sdata = msg.get_sdata();
       double ddata = msg.get_ddata();
+      string mkey  = msg.get_key();
 
-      if(bhv_postings_summary == "") {
-	bhv_postings_summary += bhv_descriptor;
-	bhv_postings_summary += "$@!$";
-	bhv_postings_summary += intToString(m_iteration);
-      }
-      if(var != "BHV_IPF") {
-	string pair_printable = msg.getPrintable();
-	bhv_postings_summary += "$@!$";
-	bhv_postings_summary += pair_printable;
-      }
+      bool key_change = true;
+      if(sdata == "")
+	key_change = detectChangeOnKey(mkey, ddata);
+      else
+	key_change = detectChangeOnKey(mkey, sdata);
+      
+      // Keep track of warnings count for inclusion in IVPHELM_SUMMARY
       if(var == "BHV_WARNING")
 	m_warning_count++;
+
+
+      // Possibly augment the postings_summary
+      if(key_change) {
+	// If first var-data tuple then tack header info on front
+	if(bhv_postings_summary == "") {
+	  bhv_postings_summary += bhv_descriptor;
+	  bhv_postings_summary += "$@!$";
+	  bhv_postings_summary += intToString(m_iteration);
+	}
+	// Handle BHV_IPF tuples separately below
+	if(var != "BHV_IPF") {
+	  string pair_printable = msg.getPrintable();
+	  bhv_postings_summary += "$@!$";
+	  bhv_postings_summary += pair_printable;
+	}
+      }
+
 
       // If posting an IvP Function, mux first and post the parts.
       if(var == "BHV_IPF") {
@@ -319,25 +371,19 @@ void HelmIvP::postBehaviorMessages()
       }
       // Otherwise just post to the DB directly.
       else {
-	string padvar = padString(var, 22, false);
 	if(sdata != "") {
-	  if(sdata != "PRIVATE_INFO") {
-	    m_info_buffer->setValue(var, sdata);
+	  m_info_buffer->setValue(var, sdata);
+	  if(key_change)
 	    m_Comms.Notify(var, sdata);
-	    if(m_verbose == "verbose")
-	      MOOSTrace("  %s %s \n", padvar.c_str(), sdata.c_str());
-	  }
 	}
 	else {
 	  m_info_buffer->setValue(var, ddata);
-	  m_Comms.Notify(var, ddata);
-	  if(m_verbose == "verbose") {
-	    string dstr = dstringCompact(doubleToString(ddata));
-	    MOOSTrace("  %s %s \n", padvar.c_str(), dstr.c_str());
-	  }
+	  if(key_change)
+	    m_Comms.Notify(var, ddata);
 	}
       }
     }
+
     if(bhv_postings_summary != "")
       m_Comms.Notify("IVPHELM_POSTINGS", bhv_postings_summary);
   }
@@ -495,6 +541,7 @@ void HelmIvP::registerVariables()
   m_Comms.Register("NAV_HEADING", 0);
   m_Comms.Register("NAV_PITCH", 0);
   m_Comms.Register("NAV_DEPTH", 0);
+  m_Comms.Register(m_refresh_var, 0);
 
   if(m_bhv_set) {
     vector<string> info_vars = m_bhv_set->getInfoVars();
@@ -636,8 +683,6 @@ bool HelmIvP::OnStartUp()
   Populator_BehaviorSet p_bset(m_ivp_domain, m_info_buffer);
 #endif
 
-//   Populator_BehaviorSet p_bset(m_ivp_domain, m_info_buffer);
-
   m_bhv_set = p_bset.populate(m_bhv_files);
   
   if(m_bhv_set == 0) {
@@ -699,4 +744,57 @@ bool HelmIvP::handleDomainEntry(const string& g_entry)
 
   bool ok = m_ivp_domain.addDomain(dname.c_str(), dlow, dhgh, dcnt);
   return(ok);
+}
+
+
+//--------------------------------------------------------------------
+// Procedure: detectChangeOnKey
+//   Purpose: To determine if the given key-value pair is unique 
+//            against the last key-value posting.
+
+bool HelmIvP::detectChangeOnKey(const string& key, const string& value)
+{
+  if(key == "")
+    return(true);
+  map<string, string>::iterator p;
+  p = m_outgoing_strings.find(key);
+  if(p == m_outgoing_strings.end()) {
+    m_outgoing_strings[key] = value;
+    return(true);
+  }
+  else {
+    string old_value = p->second;
+    if(old_value == value)
+      return(false);
+    else {
+      m_outgoing_strings[key] = value;
+      return(true);
+    }
+  }
+}
+
+//--------------------------------------------------------------------
+// Procedure: detectChangeOnKey
+//   Purpose: To determine if the given key-value pair is unique 
+//            against the last key-value posting.
+
+bool HelmIvP::detectChangeOnKey(const string& key, double value)
+{
+  if(key == "")
+    return(true);
+  map<string, double>::iterator p;
+  p = m_outgoing_doubles.find(key);
+  if(p == m_outgoing_doubles.end()) {
+    m_outgoing_doubles[key] = value;
+    return(true);
+  }
+  else {
+    double old_value = p->second;
+    if(old_value == value)
+      return(false);
+    else {
+      m_outgoing_doubles[key] = value;
+      return(true);
+    }
+  }
 }

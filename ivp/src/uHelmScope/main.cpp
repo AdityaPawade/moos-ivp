@@ -5,7 +5,7 @@
 /*    DATE: Apr 12th 2008                                        */
 /*****************************************************************/
 
-#include <string>
+#include <iostream>
 #include "MOOSLib.h"
 #include "MOOSGenLib.h"
 #include "HelmScope.h"
@@ -13,6 +13,8 @@
 #include "MBUtils.h"
 
 using namespace std;
+
+string getUserLine();
 
 // ----------------------------------------------------------
 // global variables here
@@ -63,19 +65,16 @@ pthread_t spawn_thread(ThreadParams *pParams)
 
 int main(int argc ,char * argv[])
 {
-  bool help_requested   = false;
-
-  g_sMissionFile = 0;
-  for(int i=1; i<argc; i++) {
-    string str = argv[i];
-    if(strContains(str, ".moos"))
-      g_sMissionFile = argv[i];
-
-    if((str == "-h") || (str == "--help") || (str == "-help"))
-      help_requested = true;
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    vector<string> svector = getReleaseInfo("uHelmScope");
+    for(unsigned int j=0; j<svector.size(); j++)
+      cout << svector[j] << endl;    
+    return(0);
   }
-  
-  if(help_requested) {
+
+  // Look for a request for help or usage information
+  if(scanArgs(argc, argv, "-h", "--help", "-help")) {
     MOOSTrace("Usage: uHelmScope moosfile.moos [switches] [MOOSVARS]    \n");
     MOOSTrace("  -t:  Column truncation is on (off by default)          \n");
     MOOSTrace("  -c:  Exclude MOOS Vars in MOOS file from MOOSDB-Scope  \n");
@@ -87,9 +86,34 @@ int main(int argc ,char * argv[])
     return(0);
   }
 
+  g_sMissionFile = 0;
+  for(int i=1; i<argc; i++) {
+    string str = argv[i];
+    if(strContains(str, ".moos"))
+      g_sMissionFile = argv[i];
+  }
+  
   if(!g_sMissionFile) {
     MOOSTrace("Failed to provide a MOOS (.moos) file... Exiting now.\n");
     return(0);
+#if 0
+    cout << "Server Address (default LOCALHOST): ";
+    string server_address = getUserLine();
+    cout << "Server Port (default 9000): ";
+    string server_port_s = getUserLine();
+    double server_port = atof(server_port_s.c_str());
+    cout << "AppTick (default 2): ";
+    string app_tick_s = getUserLine();
+    double app_tick = atof(app_tick_s.c_str());
+   
+    cout << "Launching with: " << endl;
+    cout << "  Server Address: " << server_address << endl;
+    cout << "  Server Port:    " << server_port << endl;
+    cout << "  AppTick:        " << app_tick << endl;
+  
+    g_theHelmScope.setAppTick(app_tick);
+    g_theHelmScope.setServer(server_address.c_str(), server_port);    
+#endif
   }
     
   bool seed = true;
@@ -148,5 +172,17 @@ int main(int argc ,char * argv[])
 
 
 
+//-------------------------------------------------------------
+// Procedure: getUserLine
 
-
+string getUserLine()
+{
+  char buffer[1000];
+  int  ix = 0;
+  while((buffer[ix]=getchar())!='\n')
+    ix++;
+  buffer[ix] = '\0';
+  string rval = buffer;
+  return(rval);
+}
+      

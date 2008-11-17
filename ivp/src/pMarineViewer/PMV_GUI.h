@@ -34,14 +34,9 @@ public:
 
   void updateXY();
   int  handle(int);
-  void augmentMenu();
   void setCurrTime(double v) {m_curr_time = v;};
   
   PMV_Viewer *mviewer;
-
-private:
-  inline void cb_CycleFocus_i(int);
-  static void cb_CycleFocus(Fl_Widget*, int);
 
 protected:
   MY_Output  *v_nam;
@@ -55,6 +50,7 @@ protected:
   MY_Output  *v_dep;
   MY_Output  *v_ais;
   MY_Output  *time;
+  MY_Output  *warp;
 
   double m_curr_time;
 };

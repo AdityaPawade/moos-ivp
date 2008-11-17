@@ -48,7 +48,7 @@ using namespace std;
 BHV_Waypoint::BHV_Waypoint(IvPDomain gdomain) : 
   IvPBehavior(gdomain)
 {
-  this->setParam("descriptor", "(d)bhv_waypoint");
+  this->setParam("descriptor", "bhv_waypoint");
   m_domain = subDomain(m_domain, "course,speed");
 
   m_cruise_speed    = 0;  // Meters/second
@@ -125,7 +125,7 @@ bool BHV_Waypoint::setParam(string param, string val)
     m_waypoint_engine.setRepeat(ival);
     return(true);
   }
-  else if(param == "radius") {
+  else if((param == "radius") || (param == "capture_radius")) {
     double dval = atof(val.c_str());
     if(dval <= 0)
       return(false);
@@ -312,8 +312,8 @@ void BHV_Waypoint::updateInfoOut(bool post)
 
     string stat = "vname=" + m_us_name + ",";
     stat += "index=" + intToString(current_waypt)   + ",";
-    stat += "dist="  + doubleToString(dist_meters)  + ",";
-    stat += "eta="   + doubleToString(eta_seconds);
+    stat += "dist="  + doubleToString(dist_meters, 0)  + ",";
+    stat += "eta="   + doubleToString(eta_seconds, 0);
     
     postMessage("WPT_STAT_LOCAL", stat);
     postMessage("WPT_INDEX", current_waypt);
@@ -327,13 +327,19 @@ void BHV_Waypoint::updateInfoOut(bool post)
   if(post) {
     if(m_waypoint_engine.currPtChanged()) {
       string ptmsg;
-      ptmsg += doubleToString(m_ptx,2) + ",";
-      ptmsg += doubleToString(m_pty,2) + ",5," + m_us_name + "_wpt";
+      ptmsg += "x=" + dstringCompact(doubleToString(m_ptx,1));
+      ptmsg += ",y=" + dstringCompact(doubleToString(m_pty,1));
+      ptmsg += ",label=" + m_us_name + "'s next waypoint";
+      ptmsg += ",type=waypoint, size=1";
+      ptmsg += ",source=" + m_us_name;
       postMessage("VIEW_POINT", ptmsg);
     }
   }
   else {
-    string ptmsg = "0,0,0," + m_descriptor;
+    string ptmsg = "x=0, y=0, z=0, active=false, size=0";
+    ptmsg += ",label=" + m_descriptor;
+    ptmsg += ",type=waypoint, size=1";
+    ptmsg += ",source=" + m_us_name;
     postMessage("VIEW_POINT", ptmsg);
   }
 

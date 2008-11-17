@@ -12,13 +12,17 @@
 class PokeDB : public CMOOSApp  
 {
  public:
-  PokeDB() {m_db_start_time=0; m_iteration=0;};
+  PokeDB(std::string g_server, long int g_port); 
+  PokeDB();
+
   virtual ~PokeDB() {};
   
   bool Iterate();
   bool OnNewMail(MOOSMSG_LIST &NewMail);
   bool OnConnectToServer();
   bool OnStartUp();
+
+  void setConfigureCommsLocally(bool v) {m_configure_comms_locally=v;};
 
   void setPokeDouble(const std::string& varname, double val);
   void setPokeString(const std::string& varname, const std::string& val);
@@ -27,6 +31,8 @@ class PokeDB : public CMOOSApp
   void registerVariables();
   void updateVariable(CMOOSMsg& msg);
   void printReport();
+
+  bool ConfigureComms();
 
 protected:
   std::vector<std::string>  m_varname;
@@ -43,4 +49,5 @@ protected:
 
   double m_db_start_time;
   int    m_iteration;
+  bool   m_configure_comms_locally;
 };

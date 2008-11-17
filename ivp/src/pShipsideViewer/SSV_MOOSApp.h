@@ -30,43 +30,29 @@
 class SSV_MOOSApp : public CMOOSApp  
 {
  public:
-  SSV_MOOSApp() {m_left_click_ix=-1; m_right_click_ix=-1;};
+  SSV_MOOSApp();
   virtual ~SSV_MOOSApp() {};
 
   void setGUI(SSV_GUI* g_gui) {m_gui=g_gui;};
 
   bool Iterate();
-
-  // virtual overide of base class CMOOSApp member.
-  // Here we register for data we wish be informed about
   bool OnConnectToServer();
-
   bool OnStartUp();
   bool OnNewMail(MOOSMSG_LIST &NewMail);
 
  protected:
-  void receiveVehicleState(CMOOSMsg &Msg);
-  bool receiveAIS_REPORT(CMOOSMsg &Msg);
-  bool receiveGRID_CONFIG(CMOOSMsg &Msg);
-  void receiveGRID_DELTA(CMOOSMsg &Msg);
-  bool receivePolygon(CMOOSMsg &Msg);
-  bool receiveSegList(CMOOSMsg &Msg);
-  bool receivePoint(CMOOSMsg &Msg);
-  bool receiveStationCircle(CMOOSMsg &Msg);
-
-  bool handleContactList(std::string);
-  bool handleMarker(std::string, std::string);
-
   void handlePendingGUI();
+  void registerVariables();
 
  protected:
   SSV_GUI* m_gui;
 
   double m_start_time;
   
-  int m_left_click_ix;
-  int m_right_click_ix;
-
+  // We hold a local copy of last click-string to repeatedly compare
+  // against the currently generated one and only post when different
+  std::string  m_left_click_str;
+  std::string  m_right_click_str;
 };
 
 #endif 

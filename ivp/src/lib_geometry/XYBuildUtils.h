@@ -26,6 +26,13 @@
 #include <string>
 #include "XYPolygon.h"
 #include "XYSegList.h"
+#include "XYPoint.h"
+
+//---------------------------------------------------------------
+// Create a point from a string specification. 
+// Example: label=bobby, type=destination, x=val, y=val, z=val
+XYPoint stringToPoint(std::string);
+
 
 //---------------------------------------------------------------
 // Create a polygon from a string specification. This function will
@@ -33,9 +40,22 @@
 XYPolygon stringToPoly(std::string);
 
 // Create a polygon that approximates an ellipse
-// Example: "type=elipse, x=val, y=val, major=val, minor=val, 
+// Example: "ellipse:: x=val, y=val, major=val, minor=val, 
 //    degs=val, rads=val, pts=val, snap_value=val, label=val"
 XYPolygon stringPairsToEllipsePoly(std::string);
+
+// Create a polygon that approximates radial pie wedge
+// Example: "wedge:: x=val, y=val, lang=val, rang=val,
+//    pts=val, range=val, snap_value=val, label=val"
+XYPolygon stringPairsToPieWedgePoly(std::string);
+
+// Create a polygon that approximates radial range wedge
+// Example: "type=wedge, x=val, y=val, lang=val, rang=val,
+//    pts=val, range=val, snap_value=val, label=val"
+XYPolygon stringPairsToRangeWedgePoly(std::string);
+
+
+
 
 // Create a rectangle from two given points
 // Example: "x1=val, y1=val, x2=val, y2=val, axis_pad=val, 
@@ -46,6 +66,9 @@ XYPolygon stringPairsToPylonPoly(std::string);
 // Example: "radial:: x=val, y=val, radius=val, pts=val, snap=val, 
 //    label=val"
 XYPolygon stringPairsToRadialPoly(std::string);
+
+
+
 
 // Create a polygon that approximates a circle.
 // Examples: "radial: px, py, prad, ppts, snapval, label"
@@ -76,5 +99,11 @@ XYSegList stringShortToPointsSegList(std::string);
 // Example: "startx, starty, angle, length, period,
 //            amplitude"
 XYSegList stringShortToZigZagSegList(std::string);
+
+
+// Create a vector of convex Polygons given a set of points
+// Examples: "pts:    10,15 : 20,25 : 30,35 : label,foobar"
+//           "points: label, foobar : 10,15 : 20,25 : 30,35"
+std::vector<XYPolygon> stringShortToPolySet(const std::string&);
   
 #endif

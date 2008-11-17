@@ -23,91 +23,68 @@
 #include <iostream>
 #include "SSV_MOOSApp.h"
 #include "MBUtils.h"
-#include "XYBuildUtils.h"
 
 using namespace std;
 
+//-----------------------------------------------------------------
+// Procedure: Constructor
+
+SSV_MOOSApp::SSV_MOOSApp() 
+{
+  m_gui = 0;
+
+  // We hold a local copy of last click-string to repeatedly compare
+  // against the currently generated one and only post when different
+  m_left_click_str  = "null"; 
+  m_right_click_str = "null";
+}
+
+//-----------------------------------------------------------------
+// Procedure: OnNewMail
+
 bool SSV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
 {
+ if(!m_gui)
+    return(true);
   NewMail.sort();
   
-  bool gui_needs_redraw = false;
-  bool gui_clear_trails = false;
-  MOOSMSG_LIST::reverse_iterator p;
+  m_gui->mviewer->setParam("curr_time", MOOSTime());
 
-  double curr_time = MOOSTime() - m_start_time;
-  m_gui->mviewer->setTime(curr_time);
+  int handled_msgs = 0;
 
-  m_gui->mviewer->mutexLock();
-
-  //cout  << NewMail.size() << "," << flush;
-  for(p = NewMail.rbegin();p!=NewMail.rend();p++) {
+  MOOSMSG_LIST::iterator p;
+  for(p = NewMail.begin();p!=NewMail.end();p++) {
     CMOOSMsg &Msg = *p;
-
-    string key = Msg.m_sKey;
-
-    if(key == "AIS_REPORT") {
-      cout << "*" << flush;
-      receiveAIS_REPORT(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "AIS_REPORT_LOCAL") {
-      cout << "*" << flush;
-      receiveAIS_REPORT(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "GRID_CONFIG") { 
-      receiveGRID_CONFIG(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "GRID_DELTA") { 
-      receiveGRID_DELTA(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "VIEW_POLYGON") { 
-      receivePolygon(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "VIEW_SEGLIST") { 
-      receiveSegList(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "VIEW_POINT") { 
-      receivePoint(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "VIEW_CIRCLE") { 
-      receivePoint(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "STATION_CIRCLE") { 
-      receiveStationCircle(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "RTATION_CIRCLE") { 
-      receiveStationCircle(Msg);
-      gui_needs_redraw = true;
-    }
-    else if(key == "TRAIL_RESET") { 
-      gui_clear_trails = true;
+    
+    string key  = Msg.m_sKey;
+    string sval = Msg.m_sVal;
+    
+    bool handled = m_gui->mviewer->setParam(key, sval);
+    if(!handled) {
+      MOOSTrace("pMarineViewer OnNewMail Unhandled msg: \n");
+      MOOSTrace("  [key:%s val:%s]\n", key.c_str(), sval.c_str());
     }
     else {
-      MOOSTrace("Unknown msg [%s]\n",key.c_str());
+      if(key == "VIEW_POLYGON")          MOOSTrace("P");
+      else if(key == "VIEW_SEGLIST")     MOOSTrace("S");
+      else if(key == "VIEW_POINT")       MOOSTrace(".");
+      else if(key == "GRID_CONFIG")      MOOSTrace("X");
+      else if(key == "AIS_REPORT")       MOOSTrace("*");
+      else if(key == "AIS_REPORT_LOCAL") MOOSTrace("*");
+      else if(key == "GRID_CONFIG")      MOOSTrace("X");
+      else if(key == "GRID_DELTA")       MOOSTrace("G");
+      else MOOSTrace("?");
+      handled_msgs++;
     }
-    //cout << "Originating community: " << Msg.m_sOriginatingCommunity << endl;
   }
-  m_gui->mviewer->mutexUnLock();
 
-  if(gui_needs_redraw && m_gui) {
+  if(handled_msgs > 0) {
     m_gui->updateXY();
     m_gui->mviewer->redraw();
   }
-  if(gui_clear_trails && m_gui)
-    m_gui->mviewer->clearTrails();
 
   return(true);
 }
-
 
 //----------------------------------------------------------------------
 // Procedure: OnConnectToServer()
@@ -115,16 +92,8 @@ bool SSV_MOOSApp::OnNewMail(MOOSMSG_LIST &NewMail)
 
 bool SSV_MOOSApp::OnConnectToServer()
 {
-  m_Comms.Register("AIS_REPORT", 0);
-  m_Comms.Register("AIS_REPORT_LOCAL", 0);
-  m_Comms.Register("GRID_CONFIG", 0);
-  m_Comms.Register("GRID_DELTA", 0);
-  m_Comms.Register("VIEW_POLYGON", 0);
-  m_Comms.Register("VIEW_SEGLIST", 0);
-  m_Comms.Register("VIEW_POINT", 0);
-  m_Comms.Register("TRAIL_RESET", 0);
-  m_Comms.Register("STATION_CIRCLE", 0);
-  m_Comms.Register("RSTATION_CIRCLE", 0);
+  registerVariables();
+  m_Comms.Notify("HELM_MAP_CLEAR", 0);
   return(true);
 }
 
@@ -134,20 +103,19 @@ bool SSV_MOOSApp::OnConnectToServer()
 
 bool SSV_MOOSApp::Iterate()
 {
-  cout << "." << flush;
+  if(!m_gui)
+    return(false);
 
   double curr_time = MOOSTime() - m_start_time;
-  m_gui->mviewer->setTime(curr_time);
-  m_gui->updateXY();
-  
-  int left_click_ix = m_gui->mviewer->getLeftClickIX();
-  if(left_click_ix > m_left_click_ix) {
-    m_left_click_ix = left_click_ix;
-    string left_click_str = m_gui->mviewer->getLeftClick();
+  m_gui->setCurrTime(curr_time);
+  m_gui->updateXY();  // do we need this here?
+
+  string left_click_str = m_gui->mviewer->getStringInfo("left_click_info");
+  if(left_click_str != m_left_click_str) {
+    m_left_click_str = left_click_str;
     
-    if(left_click_str != "") {
-      int    index   = m_gui->mviewer->getDataIndex();
-      string vname   = m_gui->mviewer->getVehiName(index);
+    if(m_left_click_str != "") {
+      string vname   = m_gui->mviewer->getStringInfo("active_vehicle_name");
       string postval = left_click_str;
       if(vname != "")
 	postval += (",vname=" + vname);
@@ -155,21 +123,16 @@ bool SSV_MOOSApp::Iterate()
     }
   }
 
-  int right_click_ix = m_gui->mviewer->getRightClickIX();
-  if(right_click_ix > m_right_click_ix) {
-    m_right_click_ix = right_click_ix;
-    string right_click_str    = m_gui->mviewer->getRightClick();
-    string right_click_rp_str = m_gui->mviewer->getRightClickRP();
+  string right_click_str = m_gui->mviewer->getStringInfo("right_click_info");
+  if(m_right_click_str != m_right_click_str) {
+    m_right_click_str = right_click_str;
     
-    if(right_click_str != "") {
-      int    index  = m_gui->mviewer->getDataIndex();
-      string vname  = m_gui->mviewer->getVehiName(index);
-      if(vname != "") {
-	right_click_str += (",vname=" + vname);
-	right_click_rp_str += (",vname=" + vname);
-      }
-      m_Comms.Notify("MVIEWER_RCLICK", right_click_str);
-      m_Comms.Notify("MVIEWER_RCLICK_RP", right_click_rp_str);
+    if(m_right_click_str != "") {
+      string vname   = m_gui->mviewer->getStringInfo("active_vehicle_name");
+      string postval = right_click_str;
+      if(vname != "")
+	postval += (",vname=" + vname);
+      m_Comms.Notify("MVIEWER_RCLICK", postval);
     }
   }
 
@@ -190,217 +153,72 @@ bool SSV_MOOSApp::OnStartUp()
   m_MissionReader.GetConfiguration(GetAppName(), sParams);
   
   //Initialize m_Geodesy from lat lon origin in .moos file
-  string sVal;
-  double dfLatOrigin;
-  double dfLongOrigin;
-  string op_area;
+  string str;
+  double lat_origin;
+  double lon_origin;
 
-  if(m_MissionReader.GetValue("LatOrigin",sVal)) {
-    dfLatOrigin = atof(sVal.c_str());
-    MOOSTrace("  LatOrigin  = %10.5f deg.\n",dfLatOrigin);
-  }
+  // First get the latitude origin from the mission file
+  if(m_MissionReader.GetValue("LatOrigin", str))
+    lat_origin = atof(str.c_str());
   else {
     MOOSTrace("LatOrigin not specified in mission file - FAIL\n");
     return(false);
   }
-
-  if(m_MissionReader.GetValue("LongOrigin",sVal)) {
-    dfLongOrigin = atof(sVal.c_str());
-    MOOSTrace("  LongOrigin = %10.5f deg.\n",dfLongOrigin);
-  }
+  // Next get the longitude origin from the mission file
+  if(m_MissionReader.GetValue("LongOrigin", str))
+    lon_origin = atof(str.c_str());
   else {
     MOOSTrace("LongOrigin not specified in mission file - FAIL\n");
     return(false);
   }
-  
-  if(!m_gui->mviewer->initGeodesy(dfLatOrigin, dfLongOrigin)) {
+  // If both lat and lon - then initialize the geodesy
+  if(!m_gui->mviewer->initGeodesy(lat_origin, lon_origin)) {
     MOOSTrace("Geodesy Init inside pShipSideViewer failed - FAIL\n");
     return(false);
   }
 
+  // Keep track of whether the back images were user configured.
+  // If not, we'll use the default image afterwards.
+  bool tiff_a_set = false;
+  bool tiff_b_set = false;
 
-  STRING_LIST::iterator p;
-  for(p = sParams.begin();p!=sParams.end();p++) {
-    string sLine    = *p;
-    string sVarName = MOOSChomp(sLine, "=");
-    sVarName = toupper(sVarName);
-    sLine    = stripBlankEnds(sLine);
+  STRING_LIST::reverse_iterator p;
+  for(p = sParams.rbegin();p!=sParams.rend();p++) {
+    string sLine = *p;
+    string param = tolower(MOOSChomp(sLine, "="));
+    string value = stripBlankEnds(sLine);
     
-    if(MOOSStrCmp(sVarName, "OP_AREA"))
-      op_area = tolower(sLine);
-    else if(MOOSStrCmp(sVarName, "VEHICOLOR"))
-      m_gui->mviewer->setColorMapping(sLine);
-    else if(MOOSStrCmp(sVarName, "OWNSHIP_NAME"))
-      m_gui->mviewer->setOwnShipName(sLine);
-    else if(MOOSStrCmp(sVarName, "CONTACTS"))
-      handleContactList(sLine);
-    else if(MOOSStrCmp(sVarName, "PORTABLE_RANGE_SENSOR"))
-      handleMarker("portable_range_sensor", sLine);
-    else if(MOOSStrCmp(sVarName, "GATEWAYA"))
-      handleMarker("gateway_a", sLine);
-    else if(MOOSStrCmp(sVarName, "GATEWAYB"))
-      handleMarker("gateway_b", sLine);
-    else if(MOOSStrCmp(sVarName, "EFIELD"))
-      handleMarker("efield", sLine);
-    else { 
-      bool handled = m_gui->mviewer->setParam(sVarName, sLine);
-      if(!handled)
-	m_gui->mviewer->setParam(sVarName, atof(sLine.c_str()));
+    if(param == "contacts") {
+      vector<string> svector = parseString(value, ',');
+      for(unsigned int i=0; i<svector.size(); i++)
+	m_gui->addContactButton(i, svector[i]);
     }
+    else { 
+      // First try as if the param-value pair had a string value
+      bool handled = m_gui->mviewer->setParam(param, value);
+      // Then try as if the param-value pair had a double value
+      if(!handled)
+	handled = m_gui->mviewer->setParam(param, atof(value.c_str()));
+      if(handled && (param == "tiff_file"))
+	tiff_a_set = true;
+      if(handled && (param == "tiff_file_b"))
+	tiff_b_set = true;	
+    } 
+  }
+
+  // If no images were specified, use the default images.
+  if(!tiff_a_set && !tiff_b_set) {
+    m_gui->mviewer->setParam("tiff_file", "Default.tif");
+    m_gui->mviewer->setParam("tiff_file_b", "DefaultB.tif");
   }
 
   m_start_time = MOOSTime();
+  m_gui->mviewer->redraw();
   
-  if(m_gui && m_gui->mviewer)
-    if(op_area != "")
-      m_gui->mviewer->setParam("op_area", op_area);
-    m_gui->mviewer->redraw();
-  
+  registerVariables();
   return(true);
 }
 
-
-//----------------------------------------------------------------------
-// Procedure: receiveAIS_REPORT
-
-bool SSV_MOOSApp::receiveAIS_REPORT(CMOOSMsg &Msg)
-{
-  string sVal = Msg.m_sVal;
-  double dfX  = 0;
-  double dfY  = 0; 
-
-  double dfSpeed     = 0;
-  double dfHeading   = 0;
-  double dfDepth     = 0;
-  string vessel_name = "";
-  string vessel_type = "";
-
-  string community(Msg.m_sOriginatingCommunity);
-
-  bool bVName = tokParse(sVal, "NAME",   ',', '=', vessel_name);
-  bool bVType = tokParse(sVal, "TYPE",   ',', '=', vessel_type);
-  bool bX     = tokParse(sVal, "X",      ',', '=', dfX);
-  bool bY     = tokParse(sVal, "Y",      ',', '=', dfY);
-  bool bSpeed = tokParse(sVal, "SPD",    ',', '=', dfSpeed);
-  bool bHeading = tokParse(sVal, "HDG",  ',', '=', dfHeading);
-  bool bDepth = tokParse(sVal, "DEPTH",  ',', '=', dfDepth);
-
-  if(bVName && bVType && bX && bY && bHeading && bSpeed && bDepth) {
-    if(m_gui) {
-      m_gui->mviewer->updateVehiclePosition(vessel_name, dfX, dfY, 
-					    dfHeading, dfSpeed, dfDepth);
-      m_gui->mviewer->setVehicleBodyType(vessel_name, vessel_type);
-    }
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receiveAIS_REPORT" << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receiveGRID_CONFIG
-
-bool SSV_MOOSApp::receiveGRID_CONFIG(CMOOSMsg &Msg)
-{
-  //cout << "RECEIVED GRID CONFIGURATION!!!!" << endl << flush;
-  //cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
-  XYGrid search_grid;
-  
-  bool ok = search_grid.initialize(Msg.m_sVal);
-  if(ok) {
-    m_gui->addGrid(search_grid);
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receiveGRID_CONFIG" << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receivePolygon
-
-bool SSV_MOOSApp::receivePolygon(CMOOSMsg &Msg)
-{
-  XYPolygon new_poly = stringToPoly(Msg.m_sVal);
-  
-  if(new_poly.size() != 0) {
-    m_gui->addPoly(new_poly);
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receivePolygon" << endl;
-    cout << "Msg: " << Msg.m_sVal << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receiveSegList
-
-bool SSV_MOOSApp::receiveSegList(CMOOSMsg &Msg)
-{
-  XYSegList new_seglist = stringToSegList(Msg.m_sVal);
-  
-  bool ok = (new_seglist.size() > 0);
-  if(ok) {
-    m_gui->mviewer->addSegList(new_seglist);
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receiveSegList" << endl;
-    cout << "Msg: " << Msg.m_sVal << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receivePoint
-
-bool SSV_MOOSApp::receivePoint(CMOOSMsg &Msg)
-{
-  XYCircle new_circ;
-  
-  bool ok = new_circ.initialize(Msg.m_sVal);
-  if(ok) {
-    m_gui->addCircle(new_circ);
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receivePoint" << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receiveStationCircle
-
-bool SSV_MOOSApp::receiveStationCircle(CMOOSMsg &Msg)
-{
-  XYCircle new_circ;
-  
-  bool ok = new_circ.initialize(Msg.m_sVal);
-  if(ok) {
-    m_gui->mviewer->addStationCircle(new_circ);
-    return(true);
-  }
-  else {
-    cout << "Parse Error in receiveStationCircle" << endl;
-    return(false);
-  }
-}
-
-//----------------------------------------------------------------------
-// Procedure: receiveGRID_DELTA
-
-void SSV_MOOSApp::receiveGRID_DELTA(CMOOSMsg &Msg)
-{
-  //cout << "RECEIVED GRID ----------- DELTA   !!!!" << endl << flush;
-  //cout << "   Msg.m_sVal:" << Msg.m_sVal << endl << flush;
-  m_gui->mviewer->updateGrid(Msg.m_sVal);
-}
 
 //----------------------------------------------------------------------
 // Procedure: handlePendingGUI
@@ -422,60 +240,18 @@ void SSV_MOOSApp::handlePendingGUI()
 
 
 //----------------------------------------------------------------------
-// Procedure: handleContactList
+// Procedure: registerVariables
 
-bool SSV_MOOSApp::handleContactList(string clist)
+void SSV_MOOSApp::registerVariables()
 {
-  vector<string> svector = parseString(clist, ',');
-  int vsize = svector.size();
-
-  for(int i=0; i<vsize; i++) {
-    cout << "[" << i << "]: " << svector[i] << endl;
-    m_gui->addContactButton(i, svector[i]);
-  }
-  return(true);
+  m_Comms.Register("AIS_REPORT", 0);
+  m_Comms.Register("AIS_REPORT_LOCAL", 0);
+  m_Comms.Register("GRID_CONFIG", 0);
+  m_Comms.Register("GRID_DELTA", 0);
+  m_Comms.Register("VIEW_POLYGON", 0);
+  m_Comms.Register("VIEW_SEGLIST", 0);
+  m_Comms.Register("VIEW_POINT", 0);
+  m_Comms.Register("TRAIL_RESET", 0);
+  m_Comms.Register("STATION_CIRCLE", 0);
+  m_Comms.Register("RSTATION_CIRCLE", 0);
 }
-
-
-//----------------------------------------------------------------------
-// Procedure: handleMarker
-
-bool SSV_MOOSApp::handleMarker(string marker_type, string clist)
-{
-  vector<string> svector = parseString(clist, ',');
-  int vsize = svector.size();
-
-  if(vsize != 3) {
-    cout << "Error processing clist: " << clist  << "(" << vsize << ")" << endl;
-    return(false);
-  }
-
-  for(int i=0; i<vsize; i++)
-    svector[i] = stripBlankEnds(svector[i]);
-
-  double x = atof(svector[0].c_str());
-  double y = atof(svector[1].c_str());
-  double s = atof(svector[2].c_str());
-  
-  cout << "Adding " << marker_type << ": " << endl;
-  cout << "  X: " << x << " y: " << y << " S:" << s << endl;
-
-
-  if(marker_type == "gateway_a")
-    m_gui->mviewer->addGatewayA(x, y, s);
-
-  if(marker_type == "gateway_b")
-    m_gui->mviewer->addGatewayB(x, y, s);
-
-  if(marker_type == "efield")
-    m_gui->mviewer->addEField(x, y, s);
-
-  if(marker_type == "portable_range_sensor")
-    m_gui->mviewer->addRangeSensor(x, y, s);
-  else
-    return(false);
-
-  return(true);
-}
-
-

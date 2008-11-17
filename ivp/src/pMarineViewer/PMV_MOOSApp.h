@@ -46,28 +46,18 @@ class PMV_MOOSApp : public CMOOSApp
 
  protected:
   void receiveVehicleState(CMOOSMsg &Msg);
-  bool receiveAIS_REPORT(CMOOSMsg &Msg);
   bool receivePK_SOL(CMOOSMsg &Msg);
-  bool receiveGRID_CONFIG(CMOOSMsg &Msg);
-  void receiveGRID_DELTA(CMOOSMsg &Msg);
-  bool receivePolygon(CMOOSMsg &Msg);
-  bool receiveSegList(CMOOSMsg &Msg);
-  bool receivePoint(CMOOSMsg &Msg);
-  bool parseSingleReport(std::string sReport);
   void registerVariables();
 
  protected:
   PMV_GUI* m_gui;
 
   double m_start_time;
-
-  int    m_left_click_ix;
-  int    m_right_click_ix;
   bool   m_verbose;
   int    m_counter;
-  int   m_vp_counter;
 
-
+  std::string  m_left_click_str;
+  std::string  m_right_click_str;
 };
 
 #endif 

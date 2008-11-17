@@ -58,14 +58,31 @@ void GeoViewer::draw()
 {
   MarineViewer::draw();
 
-  unsigned int vsize = m_poly.size();
-  for(unsigned int i=0; i<vsize; i++) {
-    if(i == m_active_poly)
-      drawPoly(m_poly[i], true, false, 1.0, 1.0, 0.0);
-    else
-      drawPoly(m_poly[i], false, false);
-  }
+  // Rather than call "drawPolygons()" in the superclass, we implement 
+  // the routine here so we can draw the "active" poly differently.
+  if(m_geoshapes.viewable("polygon_viewable_all", true) == true) {
+    int vsize = m_geoshapes.sizePolygons();
+    if(vsize > 0) {
 
+      vector<double> edge_c, fill_c, vert_c, labl_c;
+      edge_c = m_geoshapes.geocolor("polygon_edge_color", "khaki");
+      fill_c = m_geoshapes.geocolor("polygon_fill_color", "dark_green");
+      vert_c = m_geoshapes.geocolor("polygon_vertex_color", "red");
+      labl_c = m_geoshapes.geocolor("polygon_label_color", "white");
+
+      double line_width  = m_geoshapes.geosize("polygon_line_size");
+      double vertex_size = m_geoshapes.geosize("polygon_vertex_size");
+        
+      for(int i=0; i<vsize; i++) {
+	XYPolygon poly = m_geoshapes.getPolygon(i);
+	bool filled = (i == m_active_poly);
+	drawPolygon(poly, filled, false, line_width, vertex_size, 
+		    edge_c, fill_c, vert_c, labl_c);
+      }
+    }
+  }
+      
+  drawSegLists();
   drawGrids();
   drawHexagons();
 }
@@ -75,7 +92,7 @@ void GeoViewer::draw()
 
 void GeoViewer::handle_left_mouse(int vx, int vy)
 {
-  int vsize = m_poly.size();
+  int vsize = m_geoshapes.sizePolygons();
 
   double ix = view2img('x', vx);
   double iy = view2img('y', vy);
@@ -83,31 +100,37 @@ void GeoViewer::handle_left_mouse(int vx, int vy)
   double my = img2meters('y', iy);
   double sx = snapToStep(mx, m_snap_val);
   double sy = snapToStep(my, m_snap_val);
-
+  
   if(m_drop_mode == 0) {
     if(vsize == 0) {
       m_active_poly = 0;
       XYPolygon newpoly;
-      char buff[2];
-      buff[0] = 65+vsize;
-      buff[1] = '\0';
-      newpoly.set_label(buff);
-      m_poly.push_back(newpoly);
-      vsize++;
+      string new_label;
+      int vvsize = vsize;
+      while(vvsize >= 0) {
+	int rem = vvsize % 26;
+	char next_char = 65 + rem;
+	new_label += next_char;
+	vvsize = vvsize - 26;
+      }
+      newpoly.set_label(new_label);
+      newpoly.add_vertex(sx, sy);
+      m_geoshapes.addPolygon(newpoly);
     }
-    m_poly[m_active_poly].add_vertex(sx, sy);
+    else
+      m_geoshapes.poly(m_active_poly).add_vertex(sx, sy);
   }
   if(m_drop_mode == 1) {
     if(vsize > 0)
-      m_poly[m_active_poly].alter_vertex(sx, sy);
+      m_geoshapes.poly(m_active_poly).alter_vertex(sx, sy);
   }
   if(m_drop_mode == 2) {
     if(vsize > 0)
-      m_poly[m_active_poly].delete_vertex(mx, my);
+      m_geoshapes.poly(m_active_poly).delete_vertex(mx, my);
   }
   if(m_drop_mode == 3) {
     if(vsize > 0)
-      m_poly[m_active_poly].insert_vertex(sx, sy);
+      m_geoshapes.poly(m_active_poly).insert_vertex(sx, sy);
   }
   redraw();
 }
@@ -117,7 +140,7 @@ void GeoViewer::handle_left_mouse(int vx, int vy)
 
 void GeoViewer::handle_right_mouse(int vx, int vy)
 {
-  unsigned int vsize = m_poly.size(); 
+  unsigned int vsize = m_geoshapes.sizePolygons(); 
   if(vsize == 0)
     return;
 
@@ -130,14 +153,14 @@ void GeoViewer::handle_right_mouse(int vx, int vy)
   
   m_active_poly = 0;
   bool found = false;
-
+  
   for(unsigned int i=0; i<vsize; i++) {
-    if(m_poly[i].contains(mx, my)) {
+    if(m_geoshapes.poly(i).contains(mx, my)) {
       m_active_poly = i;
       found = true;
     }
   }
-
+  
   if(!found)
     createNew();
 
@@ -148,9 +171,9 @@ void GeoViewer::handle_right_mouse(int vx, int vy)
 //-------------------------------------------------------------
 // Procedure: setParam
 
-bool GeoViewer::setParam(string param, float pval)
+bool GeoViewer::setParam(string param, double pval)
 {
-  if(setCommonParam(param, pval))
+  if(MarineViewer::setParam(param, pval))
     return(true);
 
   else if(param == "mode") {
@@ -170,21 +193,29 @@ bool GeoViewer::setParam(string param, float pval)
 
 void GeoViewer::createNew()
 {
-  unsigned int vsize = m_poly.size(); 
+  unsigned int vsize = m_geoshapes.sizePolygons(); 
   if(vsize == 0)
     return;
   
-  if(m_poly[vsize-1].size() < 3) {
-    m_poly[vsize-1].clear();
+  // Is the <3 check here really necessary?
+  if(m_geoshapes.poly(vsize-1).size() < 3) {
+    m_geoshapes.poly(vsize-1).clear();
     m_active_poly = vsize-1;
   }
   else {
     XYPolygon newpoly;
-    char buff[2];
-    buff[0] = 65+vsize;
-    buff[1] = '\0';
-    newpoly.set_label(buff);
-    m_poly.push_back(newpoly);
+
+    string new_label;
+    int vvsize = vsize;
+    while(vvsize >= 0) {
+      cout << "vvsize: " << vvsize << endl;
+      int rem = vvsize % 26;
+      char next_char = 65 + rem;
+      new_label += next_char;
+      vvsize = vvsize - 26;
+    }
+    newpoly.set_label(new_label);
+    m_geoshapes.addPolygon(newpoly);
     m_active_poly = vsize;
   }
   // If current poly is empty, makes sense to always be in 
@@ -200,12 +231,10 @@ void GeoViewer::createNew()
 
 string GeoViewer::getPolySpec()
 {
-  if(m_poly.size() == 0) 
+  if(m_geoshapes.sizePolygons() == 0) 
     return("");
-  else {
-    //int s = m_poly.size();
-    return(m_poly[m_active_poly].get_spec());
-  }
+  else
+    return(m_geoshapes.poly(m_active_poly).get_spec());
 }
 
 // ----------------------------------------------------------
@@ -220,10 +249,10 @@ void GeoViewer::adjustActive(int v)
 
   if(m_active_poly < 0)
     m_active_poly = 0;
-
-  if(m_active_poly > m_poly.size()-1)
-    m_active_poly = m_poly.size()-1;
-
+  
+  if(m_active_poly > m_geoshapes.sizePolygons()-1)
+    m_active_poly = m_geoshapes.sizePolygons()-1;
+  
   if(m_active_poly != old_ix)
     redraw();
 }
@@ -234,10 +263,10 @@ void GeoViewer::adjustActive(int v)
 
 void GeoViewer::shiftHorzPoly(double shift_val)
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
-
-  m_poly[m_active_poly].shift_horz(shift_val);
+  
+  m_geoshapes.poly(m_active_poly).shift_horz(shift_val);
 }
 
 // ----------------------------------------------------------
@@ -246,47 +275,51 @@ void GeoViewer::shiftHorzPoly(double shift_val)
 
 void GeoViewer::shiftVertPoly(double shift_val)
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
-
-  m_poly[m_active_poly].shift_vert(shift_val);
+  
+  m_geoshapes.poly(m_active_poly).shift_vert(shift_val);
 }
 
 // ----------------------------------------------------------
 // Procedure: rotatePoly
-//   Purpose: 
+//   Purpose: Rotate the polygon around its center by the given
+//            number of degrees. Each point in the polygon is 
+//            rotated around the calculated center of the polygon
 
-void GeoViewer::rotatePoly(unsigned int rval)
+void GeoViewer::rotatePoly(int rval)
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
 
-  m_poly[m_active_poly].rotate(rval);
+  m_geoshapes.poly(m_active_poly).rotate(rval);
 }
 
 // ----------------------------------------------------------
 // Procedure: growPoly
-//   Purpose: 
+//   Purpose: Grow the size of the poly by the given percentage.
+//            Each point in the polygon grows in distance from 
+//            calculated center of the polygon
 
-void GeoViewer::growPoly(unsigned int gval)
+void GeoViewer::growPoly(int gval)
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
 
   double dgval = (double)(gval) / 100.0;
-  m_poly[m_active_poly].grow_by_pct(dgval);
+  m_geoshapes.poly(m_active_poly).grow_by_pct(dgval);
 }
 
 // ----------------------------------------------------------
 // Procedure: reversePoly
-//   Purpose: 
+//   Purpose: Reverse the ordering of points in the polygon.
 
 void GeoViewer::reversePoly()
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
 
-  m_poly[m_active_poly].reverse();
+  m_geoshapes.poly(m_active_poly).reverse();
 }
 
 // ----------------------------------------------------------
@@ -295,14 +328,14 @@ void GeoViewer::reversePoly()
 
 void GeoViewer::duplicateActive()
 {
-  if(m_active_poly >= m_poly.size())
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
     return;
-
-  XYPolygon new_poly = m_poly[m_active_poly];
+  
+  XYPolygon new_poly = m_geoshapes.getPolygon(m_active_poly);
   new_poly.shift_vert(-10);
   new_poly.shift_horz(10);
-  addPoly(new_poly);
-  m_active_poly = m_poly.size()-1;
+  m_geoshapes.addPolygon(new_poly);
+  m_active_poly = m_geoshapes.sizePolygons()-1;
 }
 
 // ----------------------------------------------------------
@@ -311,13 +344,10 @@ void GeoViewer::duplicateActive()
 
 void GeoViewer::clearActivePoly()
 {
-  vector<XYPolygon> new_poly;
-
-  for(unsigned int i=0; i<m_poly.size(); i++)
-    if(i != m_active_poly)
-      new_poly.push_back(m_poly[i]);
-  m_poly = new_poly;
-  m_active_poly = 0;
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
+    return;
+  
+  m_geoshapes.poly(m_active_poly).clear();
 }
 
 // ----------------------------------------------------------
@@ -326,7 +356,10 @@ void GeoViewer::clearActivePoly()
 
 void GeoViewer::reApplySnapToCurrent()
 {
-  m_poly[m_active_poly].apply_snap(m_snap_val);
+  if((m_active_poly < 0) || (m_active_poly >= m_geoshapes.sizePolygons()))
+    return;
+  
+  m_geoshapes.poly(m_active_poly).apply_snap(m_snap_val);
 }
 
 //-------------------------------------------------------------
@@ -365,7 +398,21 @@ void GeoViewer::drawCircle(unsigned int ix)
 {
   if((ix < 0) || (ix >= m_circle.size()))
     return;
-  drawPoly(m_circle_poly[ix]);
+
+  vector<double> edge_c, fill_c, vert_c, labl_c;
+  edge_c = m_geoshapes.geocolor("polygon_edge_color", "yellow");
+  fill_c = m_geoshapes.geocolor("polygon_vertex_color", "white");
+  vert_c = m_geoshapes.geocolor("polygon_vertex_color", "white");
+  labl_c = m_geoshapes.geocolor("polygon_label_color", "white");
+
+  double lwid = m_geoshapes.geosize("polygon_line_size");
+  double vert = m_geoshapes.geosize("polygon_vertex_size");
+    
+  for(int i=0; i<m_circle.size(); i++) {
+    XYPolygon poly = m_circle_poly[i];
+    drawPolygon(poly, false, false, lwid, vert, edge_c, fill_c, vert_c, labl_c);
+  }
+
 }
 
 //-------------------------------------------------------------
@@ -377,10 +424,10 @@ void GeoViewer::drawVector(double g_x, double g_y, double g_angle)
   glLoadIdentity();
   glOrtho(0, w(), 0, h(), -1 ,1);
 
-  float tx = meters2img('x', 0);
-  float ty = meters2img('y', 0);
-  float qx = img2view('x', tx);
-  float qy = img2view('y', ty);
+  double tx = meters2img('x', 0);
+  double ty = meters2img('y', 0);
+  double qx = img2view('x', tx);
+  double qy = img2view('y', ty);
 
   glMatrixMode(GL_MODELVIEW);
   glPushMatrix();

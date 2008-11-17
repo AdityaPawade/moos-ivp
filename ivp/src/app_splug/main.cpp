@@ -10,7 +10,7 @@
 /*****************************************************************/
 
 #include <stdio.h>
-#include <string.h>
+#include <cstring>
 #include <string>
 #include <iostream>
 #include "Expander.h"
@@ -23,9 +23,18 @@ using namespace std;
 
 int main(int argc, char *argv[])
 {
-  if((argc < 3) || (!strcmp(argv[1], "-h"))) {
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    vector<string> svector = getReleaseInfo("splug");
+    for(unsigned int j=0; j<svector.size(); j++)
+      cout << svector[j] << endl;    
+    return(0);
+  }
+  
+  // Look for a request for usage information
+  if(scanArgs(argc, argv, "-h", "--help", "-help")) {
     cout << "Usage: splug filename newfilename [-f, --force][MACRO=VAL]" << endl;
-    return(1);
+    return(0);
   }
 
   Expander expander(argv[1], argv[2]);
@@ -42,11 +51,9 @@ int main(int argc, char *argv[])
     }
   }
 
-  
-
   if(expander.verifyInfile())
     if(expander.expand())
         expander.writeOutput();
   
-  
+  return(0);
 }

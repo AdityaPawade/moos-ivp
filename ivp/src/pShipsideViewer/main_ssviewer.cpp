@@ -41,16 +41,6 @@ struct ThreadParams {
 };
 
 //--------------------------------------------------------
-// Procedure: usage
-
-void exit_with_usage()
-{
-  cout << "Usage: pShipsideViewer file.moos [file.tif] [-noimg]" << endl;
-  exit(-1);
-}
-
-
-//--------------------------------------------------------
 // Procedure: RunProc
 
 void* RunProc(void *lpParameter)
@@ -96,26 +86,37 @@ void idleProc(void *)
 
 int main(int argc, char *argv[])
 {
+  // Look for a request for version information
+  if(scanArgs(argc, argv, "-v", "--version", "-version")) {
+    vector<string> svector = getReleaseInfo("pShipsideViewer");
+    for(unsigned int j=0; j<svector.size(); j++)
+      cout << svector[j] << endl;    
+    return(0);
+  }
+  
+  // Look for a request for usage information
+  if(scanArgs(argc, argv, "-h", "--help", "-help")) {
+    cout << "Usage: pShipsideViewer file.moos [file.tif] [-noimg]" << endl;
+    return(0);
+  }
+
   string viewer_size = "large";
 
   for(int i=1; i<argc; i++) {
-    string argi  = argv[i];
-    if(strContains(argi, ".moos"))
+    string str  = argv[i];
+    if(strContains(str, ".moos"))
       g_sMissionFile = argv[i];
-    else if(strContains(argi, "-med"))
+    else if(strContains(str, "-med"))
       viewer_size = "medium";
-    else if(strContains(argi, "-small"))
+    else if(strContains(str, "-small"))
       viewer_size = "small";
-    else if(argi != "pShipsideViewer")
-      exit_with_usage();
   }
   
-  if(g_sMissionFile == 0)
-    exit_with_usage();
+  if(g_sMissionFile == 0) {
+    cout << "Usage: pShipsideViewer file.moos [file.tif] [-noimg]" << endl;
+    return(0);
+  }
   
-  cout << "vsize:" << viewer_size << endl;
-
-
   SSV_GUI* gui = 0;
   if(viewer_size == "small")
     gui = new SSV_GUI(1050,850, "ShipSideViewer");
@@ -124,14 +125,11 @@ int main(int argc, char *argv[])
   else 
     gui = new SSV_GUI(1400,1100, "ShipSideViewer");
 
-
-  gui->readTiff("Default.tif");
-  gui->readTiffB("DefaultB.tif");
-
   g_thePort.setGUI(gui);
 
   // start the MOOSPort in its own thread
-  ThreadParams params = {&g_thePort, "pShipsideViewer"};
+  //ThreadParams params = {&g_thePort, "pShipsideViewer"};
+  ThreadParams params = {&g_thePort, argv[0]};
   g_portThreadID = spawn_thread(&params);	
 
   Fl::add_idle(idleProc);

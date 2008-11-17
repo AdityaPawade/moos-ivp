@@ -23,7 +23,7 @@
 #ifndef SHAPE_KAYAK_HEADER
 #define SHAPE_KAYAK_HEADER
 
-float g_kayakBody[]=
+double g_kayakBody[]=
 {
     0.0,      0.0,     
     5.25,     6.0,
@@ -82,10 +82,10 @@ float g_kayakBody[]=
   -5.25,      6.0,   
    0.0,       0.0
 };
-unsigned int g_kayakBodySize = 58;
-float        g_kayakScale = 1.0;
+unsigned int g_kayakBodySize = 56;
+double        g_kayakScale = 1.0;
 
-float g_kayakMidOpen[]=
+double g_kayakMidOpen[]=
 {
     0.0,     37.5,     
     9.75,    40.0,

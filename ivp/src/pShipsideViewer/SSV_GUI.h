@@ -37,6 +37,7 @@ public:
 
   void updateXY();
   int  handle(int);
+  void setCurrTime(double v) {m_curr_time = v;};
   void augmentMenu();
   void addContactButton(int ix, std::string vname);
 
@@ -69,6 +70,9 @@ private:
   inline void cb_MOOS_Button_i(int);
   static void cb_MOOS_Button(Fl_Widget*, int);
 
+  inline void cb_SSV_SetGeoAttr_i(int);
+  static void cb_SSV_SetGeoAttr(Fl_Widget*, int);
+
 protected:
   MY_Output  *v_nam;
   MY_Output  *time;
@@ -84,6 +88,7 @@ protected:
   MY_Output  *d_radial;
   MY_Output  *m_rbearing;
   MY_Output  *m_contact_range;
+  MY_Output  *m_warp;
 
   Fl_Box     *m_deploy_box_text;
   Fl_Box     *m_deploy_box_body;
@@ -121,6 +126,8 @@ protected:
   std::vector<std::string> m_pending_vals;
 
   CMOOSLock  m_ssv_mutex;
+
+  double m_curr_time;
 };
 #endif
 
